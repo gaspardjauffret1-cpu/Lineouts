@@ -1,0 +1,1702 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Simulateur 3D des touches : signaux, feintes, lifts, lancer et maul GOON.">
+<meta name="theme-color" content="#0a111d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Touches">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>html,body{margin:0;height:100%;background:#0a111d}body{font:14px system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-text-size-adjust:100%;overscroll-behavior:none}</style>
+<title>Simulateur de touches</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : plein écran, bibliothèque de touches à gauche, terrain 3D à droite, régie de lecture en bas du terrain */
+:root{
+  --bg:#0a111d;
+  --panel:#0e1828;
+  --raise:#15233a;
+  --line:#25385a;
+  --fg:#e9eff8;
+  --muted:#93a5c0;
+  --accent:#3b82f6;
+  --accent-soft:rgba(59,130,246,.18);
+  --gold:#f6c445;
+  --danger:#ff8a7a;
+  --glass:rgba(9,15,27,.82);
+  --scrim:rgba(8,13,23,.74);
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;overflow:hidden}
+button,select,input{font:inherit;color:inherit}
+button{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+#app{position:fixed;inset:0;display:grid;grid-template-columns:350px minmax(0,1fr);
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+
+/* ---------- Panneau ---------- */
+#panel{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:18px 16px 24px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.brand .eyebrow{font-family:var(--display);text-transform:uppercase;letter-spacing:.14em;font-size:12px;color:var(--muted);font-weight:600}
+.brand h1{font-family:var(--display);font-weight:700;font-size:30px;line-height:1;margin:4px 0 0;letter-spacing:.01em;text-wrap:balance}
+.brand h1 span{color:var(--accent)}
+.sheet-close{display:none}
+.brand-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.menu-link{background:transparent;border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:13px;color:var(--muted)}
+.menu-link:hover{color:var(--fg);border-color:#3a5480}
+/* ---------- Menu d'accueil ---------- */
+#menu{position:fixed;inset:0;z-index:60;overflow-y:auto;background:var(--scrim);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.menu-in{max-width:1180px;margin:0 auto;padding-block:max(28px,calc(env(safe-area-inset-top,0px) + 5vh)) max(28px,env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:22px}
+.m-head .eyebrow{font-family:var(--display);text-transform:uppercase;letter-spacing:.14em;font-size:13px;color:var(--muted);font-weight:600}
+.m-head h1{font-family:var(--display);font-weight:700;font-size:clamp(38px,6vw,64px);line-height:.95;margin:6px 0 10px;text-wrap:balance}
+.m-head h1 span{color:var(--accent)}
+.m-head p{margin:0;max-width:62ch;color:var(--muted);font-size:16px;line-height:1.5}
+.m-back{margin-top:14px;background:var(--accent);border:0;border-radius:8px;padding:9px 16px;font-weight:600;color:#fff}
+.m-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;align-items:start}
+.m-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.m-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.m-top h2{font-family:var(--display);font-weight:700;font-size:26px;margin:0;line-height:1}
+.m-calls{display:flex;flex-direction:column;gap:6px}
+.m-call{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:baseline;text-align:left;background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+.m-call:hover{border-color:var(--accent);background:var(--accent-soft)}
+.m-call .code{font-family:var(--display);font-weight:700;font-size:18px;color:var(--accent);font-variant-numeric:tabular-nums;min-width:52px}
+.m-call .nm{font-weight:600;font-size:15px}
+.m-txt{margin:0;font-size:14px;line-height:1.45;color:var(--muted)}
+.m-foot{display:flex;flex-wrap:wrap;gap:12px;font-size:14px;color:var(--muted)}
+.m-foot label{display:flex;align-items:center;gap:8px;cursor:pointer}
+.m-foot input{accent-color:var(--accent);width:16px;height:16px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tab{background:transparent;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-family:var(--display);font-weight:600;font-size:16px;letter-spacing:.02em;text-align:left;color:var(--muted)}
+.tab small{display:block;font-family:var(--body);font-weight:500;font-size:12px;letter-spacing:0;opacity:.85}
+.tab[aria-selected="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.group-info{font-size:14px;line-height:1.45;color:var(--muted)}
+.group-info b{color:var(--fg);font-weight:600}
+.formation{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.formation span{font-family:var(--display);font-weight:600;font-size:13px;padding:2px 7px;border-radius:4px;background:var(--raise);color:var(--fg);border:1px solid var(--line)}
+.formation span.gap{background:transparent;border-style:dashed;color:var(--muted)}
+.calls{display:flex;flex-direction:column;gap:6px}
+.call{display:grid;grid-template-columns:62px minmax(0,1fr);gap:2px 10px;align-items:baseline;text-align:left;background:var(--raise);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.call .code{grid-row:span 2;font-family:var(--display);font-weight:700;font-size:20px;color:var(--accent);font-variant-numeric:tabular-nums}
+.call .nm{font-weight:600;font-size:15px}
+.call .sm{font-size:13px;color:var(--muted);line-height:1.35}
+.call[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.call:hover{border-color:#3a5480}
+.tyson{display:flex;flex-direction:column;gap:10px}
+.tyson label{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.trow{display:flex;gap:6px}
+.trow input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px;font-size:16px}
+.btn{background:var(--accent);border:0;border-radius:6px;padding:9px 14px;font-weight:600;color:#fff}
+.keys{display:flex;gap:6px;flex-wrap:wrap}
+.key{background:var(--raise);border:1px solid var(--line);border-radius:6px;min-width:40px;padding:6px 10px;font-family:var(--display);font-weight:700;font-size:18px}
+.err{color:var(--danger);font-size:13px;line-height:1.4;min-height:0}
+.rules{display:grid;gap:6px;font-size:13px;line-height:1.4;color:var(--muted)}
+.rules div{display:grid;grid-template-columns:28px 1fr;gap:6px}
+.rules b{font-family:var(--display);font-size:18px;color:var(--gold);line-height:1}
+.ex{display:flex;gap:6px;flex-wrap:wrap}
+.ex button{background:transparent;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:13px}
+.ex button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.hint{margin:0;font-size:13px;line-height:1.45;color:var(--muted)}
+.hint em{color:var(--fg);font-style:normal;font-weight:500}
+.opts{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line);padding-top:14px}
+.opts h2,.check h2{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{background:transparent;border:0;border-right:1px solid var(--line);padding:7px 4px;font-size:13px;color:var(--muted)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--raise);color:var(--fg);font-weight:600;box-shadow:inset 0 -2px 0 #e05a4e}
+.toggles{display:flex;flex-direction:column;gap:6px}
+.toggles label{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.toggles input{accent-color:var(--accent);width:16px;height:16px}
+details.check{border-top:1px solid var(--line);padding-top:14px}
+details.check summary{cursor:pointer;font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+details.check ul{margin:10px 0 0;padding-left:18px;font-size:13px;line-height:1.45;color:var(--muted);display:grid;gap:4px}
+
+/* ---------- Terrain ---------- */
+#stage{position:relative;min-width:0;overflow:hidden}
+#cv{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#pops{position:absolute;inset:0;pointer-events:none}
+.pop{position:absolute;transform:translate(-50%,-100%);background:var(--gold);color:#1a1405;font-family:var(--display);font-weight:700;font-size:17px;padding:3px 9px;border-radius:5px;white-space:nowrap;letter-spacing:.02em}
+.pop::after{content:"";position:absolute;left:50%;bottom:-5px;margin-left:-5px;border:5px solid transparent;border-bottom:0;border-top-color:var(--gold)}
+#hud{position:absolute;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;pointer-events:none}
+#hud>*{pointer-events:auto}
+.card{background:var(--glass);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:10px;padding:12px 14px;max-width:470px;min-width:0;flex:1 1 300px}
+.card .top{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.card .code{font-family:var(--display);font-weight:700;font-size:26px;color:var(--accent);line-height:1}
+.card .nm{font-family:var(--display);font-weight:600;font-size:24px;line-height:1}
+.chip{font-size:12px;font-weight:600;letter-spacing:.04em;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.step-title{margin-top:10px;font-weight:600;font-size:16px;line-height:1.3}
+.step-title .n{font-family:var(--display);color:var(--gold);font-weight:700;margin-right:6px;font-variant-numeric:tabular-nums}
+.step-desc{margin-top:4px;font-size:14px;line-height:1.45;color:var(--muted);max-width:62ch}
+.legend{display:flex;gap:14px;margin-top:10px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;border:2px solid;margin-right:5px;vertical-align:-1px}
+.hudR{display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none}
+.hudR>*{pointer-events:auto}
+#perf{background:var(--glass);border:1px solid var(--line);border-radius:8px;padding:8px;max-width:330px;display:flex;flex-direction:column;gap:6px}
+#perfInfo{margin:0;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--fg);white-space:pre-wrap}
+#perfNote{font-size:12px;color:var(--gold);line-height:1.4}
+#perfNote:empty{display:none}
+#cams{display:flex;gap:4px;background:var(--glass);border:1px solid var(--line);border-radius:8px;padding:4px;flex-wrap:wrap}
+#cams button{background:transparent;border:0;border-radius:5px;padding:6px 10px;font-size:13px;font-weight:500;color:var(--muted)}
+#cams button[aria-pressed="true"]{background:var(--raise);color:var(--fg)}
+#transport{position:absolute;left:12px;right:12px;bottom:12px;background:var(--glass);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:10px}
+.ctrls{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ib{width:38px;height:38px;border-radius:8px;border:1px solid var(--line);background:var(--raise);display:grid;place-items:center;padding:0}
+.ib svg{width:18px;height:18px;fill:currentColor}
+.ib.play{width:46px;background:var(--accent);border-color:var(--accent);color:#fff}
+#menuBtn{display:none;width:auto;padding:0 12px;font-weight:600;font-size:14px}
+.stepinfo{flex:1;min-width:120px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;padding-left:4px}
+.speed{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.speed select{background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:6px 8px}
+#bar{display:flex;gap:3px;height:16px;cursor:pointer;touch-action:none}
+#bar .seg-t{position:relative;background:var(--raise);border-radius:3px;overflow:hidden;min-width:4px}
+#bar .seg-t .f{position:absolute;inset:0 auto 0 0;background:var(--accent)}
+#bar .seg-t.cur{outline:1px solid var(--gold)}
+#bar .seg-t.k-jump .f{background:var(--gold)}
+#loadErr{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:24px;color:var(--muted)}
+
+@media (max-width:760px){
+  #app{grid-template-columns:minmax(0,1fr)}
+  #panel{position:fixed;left:0;right:0;bottom:0;max-height:78%;z-index:30;border-right:0;border-top:1px solid var(--line);border-radius:14px 14px 0 0;transform:translateY(105%);transition:transform .25s ease;padding-bottom:max(24px,env(safe-area-inset-bottom,0px));box-shadow:0 -10px 40px rgba(0,0,0,.5)}
+  #panel.open{transform:none}
+  .sheet-close{display:block;position:absolute;right:14px;top:14px;background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font-size:13px}
+  #menuBtn{display:grid}
+  .card{padding:10px 12px;flex-basis:100%}
+  .card .code{font-size:21px}.card .nm{font-size:20px}
+  .step-desc{font-size:13px}
+  .legend{display:none}
+  .stepinfo{min-width:0;order:9;flex-basis:100%;padding-left:0}
+  .speed select{font-size:16px}   /* iOS : pas de zoom automatique sur le sélecteur */
+}
+@media (prefers-reduced-motion:reduce){#panel{transition:none}}
+</style>
+
+</head>
+<body>
+<div id="app">
+  <aside id="panel" aria-label="Bibliothèque de touches">
+    <button class="sheet-close" id="sheetClose" type="button">Fermer</button>
+    <header class="brand">
+      <div class="brand-row"><div class="eyebrow">Alignements · thème boxe</div><button class="menu-link" id="toMenu" type="button">Menu</button></div>
+      <h1>Simulateur de <span>touches</span></h1>
+    </header>
+    <div class="tabs" role="tablist" id="tabs"></div>
+    <div class="group-info" id="groupInfo"></div>
+    <div class="calls" id="callList"></div>
+    <div class="tyson" id="tysonBox" hidden>
+      <label for="tysonInput">Appel Tyson</label>
+      <div class="trow">
+        <input id="tysonInput" type="text" autocomplete="off" spellcheck="false" placeholder="ex. S − ++">
+        <button class="btn" id="tysonGo" type="button">Jouer</button>
+      </div>
+      <div class="keys">
+        <button class="key" type="button" data-z="T">T</button>
+        <button class="key" type="button" data-z="S">S</button>
+        <button class="key" type="button" data-z="N">N</button>
+        <button class="key" type="button" data-k="+">+</button>
+        <button class="key" type="button" data-k="−">−</button>
+        <button class="key" type="button" data-k="⌫" aria-label="Effacer le dernier signe">⌫</button>
+      </div>
+      <div class="err" id="tysonErr" role="alert"></div>
+      <div class="rules">
+        <div><b>T S N</b><span></span></div>
+        <div><b>+</b><span>Le lifteur avant sort, le sauteur annoncé avance d'une zone avec son lifteur arrière.</span></div>
+        <div><b>−</b><span>Le sauteur annoncé sort, le lifteur avant avance et on saute sur le lifteur arrière, qui recule d'une zone.</span></div>
+      </div>
+      <div class="ex" id="tysonEx"></div>
+      <p class="hint">Tu peux aussi taper un mot d'annonce : seule sa première lettre compte. Idées de mots : <em>Tyson, Table</em> pour T, <em>Saucisson, Saucisse</em> pour S, <em>Natasha, Nathalie</em> pour N.</p>
+    </div>
+    <section class="opts" aria-label="Options">
+      <h2>Défense adverse</h2>
+      <div class="seg" id="defSeg">
+        <button type="button" data-d="none">Aucune</button>
+        <button type="button" data-d="static">Immobile</button>
+        <button type="button" data-d="follow">Suit les feintes</button>
+      </div>
+      <div class="toggles">
+        <label><input type="checkbox" id="optNames" checked> Noms des joueurs</label>
+        <label><input type="checkbox" id="optPaths" checked> Trajectoires de l'étape</label>
+        <label><input type="checkbox" id="optStep"> Pause à chaque étape</label>
+        <label id="goonWrap" hidden><input type="checkbox" id="optGoon"> Finir en maul « GOON »</label>
+      </div>
+    </section>
+  </aside>
+
+  <main id="stage">
+    <canvas id="cv" aria-label="Terrain de rugby en 3D"></canvas>
+    <div id="pops"></div>
+    <div id="hud">
+      <div class="card" aria-live="polite">
+        <div class="top"><span class="code" id="hCode"></span><span class="nm" id="hName"></span><span class="chip" id="hSign"></span></div>
+        <div class="step-title" id="hStep"></div>
+        <div class="step-desc" id="hDesc"></div>
+        <div class="legend"><span><i style="border-color:var(--gold)"></i>Sauteur</span><span><i style="border-color:#dfe8ff"></i>Lifteur</span><span><i style="border-color:#e05a4e;background:#e05a4e"></i>Défense</span></div>
+      </div>
+      <div class="hudR"><div id="cams" role="group" aria-label="Caméra"></div>
+        <div id="perf" hidden><div id="perfStats"></div><pre id="perfInfo"></pre><div id="perfNote" role="status"></div></div></div>
+    </div>
+    <div id="transport">
+      <div class="ctrls">
+        <button class="ib" id="homeBtn" type="button" aria-label="Retour au menu"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></button>
+        <button class="ib" id="menuBtn" type="button">Touches</button>
+        <button class="ib" id="bRestart" type="button" aria-label="Recommencer"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg></button>
+        <button class="ib" id="bPrev" type="button" aria-label="Étape précédente"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+        <button class="ib play" id="bPlay" type="button" aria-label="Lecture"><svg viewBox="0 0 24 24" id="playIco"><path d="M7 4v16l13-8z"/></svg></button>
+        <button class="ib" id="bNext" type="button" aria-label="Étape suivante"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+        <div class="stepinfo" id="stepInfo"></div>
+        <label class="speed" for="speedSel">Vitesse
+          <select id="speedSel">
+            <option value="0.25">×0,25</option>
+            <option value="0.5">×0,5</option>
+            <option value="1" selected>×1</option>
+            <option value="1.5">×1,5</option>
+          </select>
+        </label>
+      </div>
+      <div id="bar" aria-label="Étapes de la touche"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Menu d'accueil : on choisit une touche avant d'entrer dans le simulateur -->
+<div id="menu" role="dialog" aria-modal="true" aria-labelledby="menuTitle">
+  <div class="menu-in">
+    <header class="m-head">
+      <div class="eyebrow">Alignements · thème boxe</div>
+      <h1 id="menuTitle">Simulateur de <span>touches</span></h1>
+      <p>Choisis une touche pour la voir en 3D, étape par étape : signal, feintes, lift, lancer et réception.</p>
+      <button class="m-back" id="menuBack" type="button" hidden>Reprendre la touche en cours</button>
+    </header>
+    <div class="m-grid" id="menuGrid"></div>
+    <footer class="m-foot">
+      <label><input type="checkbox" id="menuGoon"> Finir les touches à 5 et les Tyson en maul « GOON »</label>
+    </footer>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import Stats from 'three/addons/libs/stats.module.js';
+
+/* =====================================================================
+   1. MOTEUR DES TOUCHES
+   Axe z = distance depuis la ligne de touche (m). x > 0 = notre côté.
+   ===================================================================== */
+const LINE=0.55, OPPX=-0.55, POD=0.42, SIDE=LINE+0.4, LIFTH=1.3;
+const YAW_US=Math.PI+0.3, YAW_OPP=Math.PI-0.3, YAW_SIDE=-Math.PI/2;
+const CH=['x','z','crouch','lift','arms','sigI','sigO','yaw','grip','hold','twist','lean','tuck','stance'];
+const STRIDE=1.7;   // mètres par cycle de foulée
+const wrapPi=a=>a-2*Math.PI*Math.round(a/(2*Math.PI));
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v));
+const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a));return t*t*(3-2*t);};
+const easeIO=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const easeOut=t=>1-Math.pow(1-t,3);
+const jumpE=u=>easeOut(clamp((u-0.12)/0.66));
+const SHAPES={
+  bump:u=>Math.sin(Math.PI*u),
+  hold:u=>smooth(0,.18,u)*(1-smooth(.82,1,u)),
+  feint:u=>(u<.3||u>.85)?0:Math.sin(Math.PI*(u-.3)/.55),
+  windup:u=>u<.1?u/.1:Math.max(0,1-(u-.1)/.3)
+};
+const clone=o=>JSON.parse(JSON.stringify(o));
+const mkState=o=>({x:o.x??LINE,z:o.z,crouch:o.crouch??0.12,lift:0,arms:o.arms??0,sigI:0,sigO:0,yaw:o.yaw??YAW_US,grip:0,hold:0,twist:0,lean:0,tuck:0,stance:0,tgt:null,tgt2:null,side:null});
+
+class Seq{
+  constructor(meta,line,dmZ){
+    this.meta=meta; this.line=Object.keys(line); this.home={...line};
+    this.st={}; for(const n of this.line) this.st[n]=mkState({z:line[n]});
+    this.st.T=mkState({x:0,z:-0.8,yaw:0,arms:1.02,crouch:0});
+    this.st.DM=mkState({x:LINE+2.6,z:dmZ,yaw:-Math.PI/2,crouch:0.3});
+    // Talonneur et demi de mêlée adverses (scriptables, ex. 2 contre 1 dans le couloir)
+    this.st.OT=mkState({x:-2.2,z:2.6,yaw:Math.PI*0.75,crouch:0.15});
+    this.st.O9=mkState({x:OPPX-2.6,z:9.5,yaw:Math.PI/2,crouch:0.3});
+    // L1, tout devant, ne regarde jamais le talonneur : face au sauteur s'il est collé à lui, sinon de profil.
+    if(this.st.L1){const near=this.line.some(n=>n!=='L1'&&Math.abs(this.st[n].z-this.st.L1.z)<0.8);
+      this.st.L1.yaw=near?-0.12:YAW_SIDE; if(near) this.st.L1.crouch=0.3;}
+    this.phases=[]; this.roles={}; this.focus=null; this.defFocus=null; this.threat=null; this.ballBy='T'; this.tyson=!!meta.tyson;
+  }
+  // Orientation d'un joueur qui n'est plus impliqué : de profil face aux adversaires en Tyson (et toujours pour L1), sinon vers le talonneur.
+  idleYaw(n){return (this.tyson||n==='L1')?YAW_SIDE:YAW_US;}
+  add(title,desc,dur,kind,fn){
+    const ph={title,desc,dur,kind,start:clone(this.st),pulse:{},bulge:{},win:{},pops:[],ball:{mode:'held',by:this.ballBy}};
+    this.cur=ph; if(fn) fn(this);
+    ph.end=clone(this.st); ph.roles={...this.roles}; ph.focus=this.focus; ph.dfocus=this.defFocus||this.focus; ph.threat=this.threat;
+    this.yieldFor(ph);
+    this.phases.push(ph); return this;
+  }
+  /* Un joueur resté dans la ligne s'écarte le temps de laisser passer un coéquipier qui court DANS la ligne,
+     puis reprend sa place. Le bloc de saut (sauteur et lifteurs) ne s'écarte jamais, et un joueur qui court
+     derrière la ligne ne fait écarter personne. */
+  yieldFor(ph){
+    if(ph.yielded) for(const n in ph.yielded) delete ph.bulge[n];
+    ph.yielded={};
+    const inLine=s=>Math.abs(s.x-LINE)<0.2;
+    const moving=this.line.filter(n=>Math.abs(ph.end[n].z-ph.start[n].z)>0.3&&!ph.bulge[n]&&inLine(ph.start[n])&&inLine(ph.end[n]));
+    for(const n of this.line){
+      const a=ph.start[n], b=ph.end[n];
+      if(ph.bulge[n]||Math.abs(b.z-a.z)>0.3||!inLine(a)) continue;
+      if(ph.roles[n]||b.grip>0.05||a.lift>0.01||b.lift>0.01) continue;
+      if(moving.some(m=>{const za=ph.start[m].z,zb=ph.end[m].z; return a.z>Math.min(za,zb)-0.3&&a.z<Math.max(za,zb)+0.3;})){ph.bulge[n]=0.55; ph.yielded[n]=1;}
+    }
+  }
+  set(n,o){Object.assign(this.st[n],o);}
+  mv(n,z,o={}){const s=this.st[n]; s.z=z; s.x=o.x??LINE; if(o.bulge) this.cur.bulge[n]=o.bulge;}
+  exit(n,z,x=LINE,bulge=0.45){this.mv(n,z,{x,bulge}); this.set(n,{crouch:0.1,arms:0,grip:0,tgt:null,side:null,yaw:this.idleYaw(n)});}
+  pod(j,f,r,z){
+    this.mv(j,z); this.mv(f,z-POD); if(r) this.mv(r,z+POD);
+    this.set(j,{crouch:0.45,arms:0.15,grip:0,tgt:null,side:null,yaw:YAW_US});
+    const lif=(n,side)=>{const s=this.st[n];
+      if(s.tgt&&s.tgt!==j&&s.grip>0.05) this.pulse(n,'grip',-s.grip,'bump');
+      this.set(n,{crouch:0.6,arms:0.2,grip:0.9,tgt:j,side,yaw:side==='f'?-0.12:Math.PI+0.12});};
+    lif(f,'f'); if(r) lif(r,'r');
+    this.roles={[j]:'J',[f]:'L'}; if(r) this.roles[r]='L'; this.focus=j;
+  }
+  pulse(n,ch,a,shape='bump'){(this.cur.pulse[n]||(this.cur.pulse[n]={}))[ch]={a,shape};}
+  // Fenêtre de temps propre à un joueur dans l'étape (ex. L2 attend que L1 l'ait dépassé).
+  win(n,u0,u1){this.cur.win[n]=[u0,u1];}
+  // Profil de vitesse du déplacement : 'lin' (vitesse constante), 'in' (accélère), 'out' (décélère).
+  easeP(n,k){(this.cur.ease||(this.cur.ease={}))[n]=k;}
+  pop(n,text){this.cur.pops.push({n,text});}
+  lifters(){return Object.keys(this.roles).filter(n=>this.roles[n]==='L');}
+  setPod(j,f,r,z,title,desc,dur=0.6){return this.add(title,desc,dur,'set',s=>s.pod(j,f,r,z));}
+  signal(which,clap=false){
+    const txt={int:'main intérieure',ext:'main extérieure',both:'deux mains'}[which];
+    const desc={int:'S1, capitaine de touche, montre la main intérieure (côté couloir).',
+      ext:"S1, capitaine de touche, montre la main extérieure (côté de notre équipe).",
+      both:"S1 lève les deux mains sur les côtés pour que tout l'alignement le voie."}[which]
+      +(clap?' En entrant dans la touche, il clape une fois : le sauteur reculera de 2 pas.':'');
+    return this.add(`Signal de S1 : ${txt}${clap?' + clap':''}`,desc,1.7,'signal',s=>{
+      if(which!=='ext') s.pulse('S1','sigI',1,'hold');
+      if(which!=='int') s.pulse('S1','sigO',1,'hold');
+      if(clap) s.pop('S1','CLAP');
+    });
+  }
+  /* Feinte = saut simulé : le sauteur plonge puis s'élance bras en l'air, les lifteurs amorcent le lift.
+     mode 'out' : le sauteur simule le saut en se décalant sur le côté (il sort).
+     mode 'plus' : saut simulé sur place et, au même moment, le lifteur avant se décale. */
+  feint(title,desc,pop,mode){
+    const j=this.focus, L=this.lifters(), f=L.find(n=>this.st[n].side==='f');
+    return this.add(title,desc,1.0,'feint',s=>{
+      s.pulse(j,'lift',0.42,'feint'); s.pulse(j,'arms',0.85,'feint');
+      L.forEach(n=>{s.pulse(n,'crouch',-0.45,'feint'); s.pulse(n,'lift',0.04,'feint');});
+      s.set(j,{crouch:0.25}); L.forEach(n=>s.set(n,{crouch:0.45,grip:1}));
+      if(mode==='out'){ s.set(j,{x:SIDE,crouch:0.15}); L.forEach(n=>s.set(n,{grip:0.6})); }
+      if(mode==='plus'&&f){ s.set(f,{x:SIDE,grip:0,crouch:0.1,yaw:s.idleYaw(f)}); delete s.cur.pulse[f]; delete s.roles[f]; }
+      if(pop) s.pop(j,pop);
+    });
+  }
+  jump(title,desc,opt={}){
+    const j=this.focus, L=this.lifters(), h=opt.h??1;
+    const goon=!!(this.meta.goon&&L.length);
+    const jz=this.st[j].z, MX=LINE+0.52, APPX=LINE+1.0, JUMP_DUR=1.05;
+    let R=null,P=null; const tgtZ={};
+    if(goon){
+      // GOON : les deux joueurs non impliqués dans le saut partent dès la dernière avancée (ou le dernier recul)
+      // du sauteur, c'est-à-dire l'étape qui forme le bloc. Ils courent derrière la ligne et arrivent sous
+      // le sauteur au moment où il capte le ballon : ils ne courent plus pendant que le bloc est en l'air.
+      [R,P]=this.line.filter(n=>n!==j&&!L.includes(n)).sort((a,b)=>this.st[a].z-this.st[b].z);
+      tgtZ[R]=jz-0.24; tgtZ[P]=jz+0.24;
+      const prev=this.phases[this.phases.length-1], T1=prev.dur;
+      const k1=T1/(T1+JUMP_DUR/2);   // vitesse continue : constante sur l'étape d'avant, puis décélère pendant le saut
+      for(const n of [R,P]){
+        const o=prev.start[n], z1=o.z+(tgtZ[n]-o.z)*k1;
+        prev.end[n]={...prev.end[n],x:APPX,z:z1,yaw:Math.atan2(APPX-o.x,z1-o.z),crouch:0.15,arms:0,grip:0,hold:0,tgt:null,tgt2:null,side:null};
+        delete prev.bulge[n]; delete prev.win[n]; delete prev.pulse[n]; (prev.ease||(prev.ease={}))[n]='lin';
+        this.st[n]=clone(prev.end[n]);
+      }
+      this.yieldFor(prev);
+      this.ripper=R; this.ripIdx=this.phases.length-1;
+    }
+    this.add(title,desc,JUMP_DUR,'jump',s=>{
+      s.set(j,{lift:h,arms:1,crouch:0}); L.forEach(n=>s.set(n,{crouch:0,lift:0.06,grip:1}));
+      s.set('T',{arms:0.25}); s.pulse('T','arms',0.12,'windup');
+      s.cur.ball={mode:'throw',from:'T',to:j};
+      s.mv('DM',s.st[j].z+0.9,{x:LINE+1.9}); s.set('DM',{crouch:0.2});
+      if(goon) for(const n of [R,P]){ s.mv(n,tgtZ[n],{x:MX}); s.easeP(n,'out'); s.set(n,{yaw:-Math.PI/2,crouch:0.35}); }
+    });
+    this.ballBy=j;
+    this.add('Prise de balle',`${j} capte le ballon au sommet du saut.`,0.3,'catch',s=>{s.set('T',{arms:0});});
+    if(goon) return this.goon(j,L,R,P,jz,MX);
+    if(opt.after) return opt.after(this,j,L);
+    const sj=this.st[j], toDM=Math.atan2(this.st.DM.x-sj.x,this.st.DM.z-sj.z), rel=wrapPi(toDM-sj.yaw);
+    this.add('Passe en l’air au demi de mêlée',`Toujours en haut du saut, ${j} tourne le tronc vers le demi de mêlée et lui passe directement le ballon.`,0.75,'pass',s=>{
+      s.cur.ball={mode:'pass',from:j,to:'DM',rel:0.38,arr:0.9}; s.set('DM',{arms:0.45,crouch:0.1});
+      s.set(j,{arms:0.5,twist:clamp(rel*0.8,-1.35,1.35)}); s.pulse(j,'arms',0.25,'bump');
+    });
+    this.ballBy='DM';
+    this.add('Redescente',L.length?`Les lifteurs redescendent ${j}. Le demi de mêlée a le ballon.`:`${j} se réceptionne. Le demi de mêlée a le ballon.`,0.8,'down',s=>{
+      s.set(j,{lift:0,arms:0.1,crouch:0.15,twist:0}); L.forEach(n=>s.set(n,{lift:0,crouch:0.35}));
+    });
+    this.add('Fin de l’action','Les lifteurs relâchent le sauteur.',0.5,'end',s=>L.forEach(n=>s.set(n,{grip:0,crouch:0.15})));
+    return this;
+  }
+  /* Maul « GOON » : le bloc reste en l'air, les deux joueurs libres (partis dès le saut) se lient sous le sauteur.
+     L'arracheur est celui des deux qui est côté talonneur. Le talonneur arrive ensuite fort et lui arrache le ballon. */
+  goon(j,L,R,P,jz,MX){
+    const LOW={crouch:0.85,lean:0.08,tuck:0.6,stance:1};   // le clip « maul » porte déjà le buste penché
+    // Le bloc reste immobile en l'air : le sauteur ne pivote pas, ses lifteurs gardent leur prise.
+    this.add('Le bloc reste en l’air',`${j} ramène le ballon contre lui, le bloc reste immobile en l’air. ${R} et ${P}, déjà arrivés dessous, se lient : ${R}, côté talonneur, est l’arracheur.`,1.4,'hold',s=>{
+      s.set(j,{arms:0.55});
+      s.set(R,{crouch:0.5,lean:0.15,tuck:0.4,grip:0.55,hold:0,tgt:j,tgt2:P,side:'rip'});
+      s.set(P,{crouch:0.5,lean:0.15,tuck:0.4,grip:0.85,tgt:j,tgt2:R,side:'bind'});
+      s.mv('DM',jz+1.5,{x:LINE+2.8});});
+    this.goonIdx=this.phases.length; this.maulJ=j;
+    this.add('Redescente du sauteur',`Les lifteurs redescendent ${j} sans le lâcher. ${R} monte le bras intérieur, celui entre lui et ${P}, pour saisir le ballon.`,0.9,'down',s=>{
+      s.set(j,{lift:0,crouch:0.35}); L.forEach(n=>s.set(n,{lift:0,crouch:0.45}));
+      s.set(R,{grip:1,crouch:0.6});});
+    this.ballBy=R;
+    // Une fois au sol seulement : le sauteur se tourne vers son camp et les lifteurs se lient sur lui.
+    this.add('L’arracheur prend le ballon',`${j}, au sol, se tourne vers son camp. ${R} arrache le ballon avec le bras intérieur et le garde au milieu, entre lui et ${P}. Les lifteurs se lient : appuis bas, têtes rentrées.`,0.75,'rip',s=>{
+      s.set(R,{hold:1,...LOW}); s.set(P,{...LOW}); s.set(j,{arms:0.25,crouch:0.6,lean:0.2,tuck:0.6,yaw:Math.PI/2});
+      L.forEach(n=>{s.set(n,{...LOW,side:'mb',grip:1}); s.pulse(n,'grip',-0.6,'bump');});});
+    this.add('Le talonneur arrive fort',`Le talonneur arrive lancé derrière ${R} et ${P}.`,1.0,'rip',s=>{
+      s.mv('T',jz,{x:MX+0.5}); s.set('T',{yaw:-Math.PI/2,crouch:0.55,lean:0.15,tuck:0.4,grip:1,tgt:R,tgt2:null,side:'hk',arms:0.45});});
+    this.ballBy='T';
+    this.add('Le talonneur arrache le ballon',`Le talonneur arrache le ballon des mains de ${R} pour conduire le maul.`,0.6,'rip',s=>{
+      s.set('T',{grip:0,crouch:0.75,lean:0.3,tuck:0.8}); s.set(R,{grip:0.7});});
+    this.add('Le maul avance','Le talonneur conduit le maul. Appuis bas, têtes rentrées, liaisons serrées : tout le bloc pousse.',2.4,'maul',s=>{
+      for(const n of [j,...L,R,P,'T']){const st=s.st[n]; s.mv(n,st.z,{x:st.x-2.2}); s.set(n,{...LOW});}
+      s.set(j,{crouch:0.7,lean:0.25});
+      s.mv('DM',s.st.DM.z,{x:s.st.DM.x-1.8});});
+    return this;
+  }
+  finalize(){
+    if(this.total) return this;
+    let acc=0; for(const p of this.phases){p.t0=acc; acc+=p.dur;} this.total=acc;
+    // distance parcourue par joueur (pour la foulée)
+    const cum={};
+    for(const p of this.phases){ p.len={}; p.cum={};
+      for(const n in p.end){ let l=0, prev=posXZ(p,n,0);
+        for(let k=1;k<=10;k++){const q=posXZ(p,n,k/10); l+=Math.hypot(q[0]-prev[0],q[1]-prev[1]); prev=q;}
+        p.len[n]=l; p.cum[n]=cum[n]||0; cum[n]=(cum[n]||0)+l; } }
+    this.firstFocus=(this.phases.find(p=>p.focus)||{}).focus||this.line[1];
+    for(const p of this.phases){ if(!p.focus) p.focus=this.firstFocus; if(!p.dfocus) p.dfocus=p.focus; }
+    // Défense « suit les feintes » : chaque bloc adverse ne saute qu'une fois, sur le premier saut (ou la première feinte) qui le concerne.
+    this.events=this.phases.filter(p=>p.kind==='feint'||p.kind==='jump').map(p=>({t0:p.t0,kind:p.kind,z:p.start[p.focus].z}));
+    const th=this.phases.find(p=>p.threat); this.threatT0=th?th.t0:null;
+    // La défense a toujours autant de joueurs que notre alignement.
+    if(this.line.length===5){
+      // À 5 : un monolift devant les 5 m (sauteur + lifteur arrière seul) et un bloc de trois en lecture derrière.
+      this.oppHomes=[5.25,5.8,8.4,8.95,9.5]; this.oppMono=[0,1]; this.oppPod=[2,3,4];
+    } else {
+      this.oppHomes=this.line.map(n=>this.home[n]); this.oppMono=null;
+      const fz0=this.home[this.firstFocus];
+      this.oppPod=this.oppHomes.map((z,i)=>i).sort((a,b)=>Math.abs(this.oppHomes[a]-fz0)-Math.abs(this.oppHomes[b]-fz0)).slice(0,3).sort((a,b)=>this.oppHomes[a]-this.oppHomes[b]);
+    }
+    // Le monolift ne mord que sur ce qui se passe devant ; le bloc de trois, en lecture, ne réagit qu'à ce qui se passe dans sa zone.
+    const MONO_Z=7.5;
+    if(this.oppMono){ this.monoEv=this.events.find(e=>e.z<MONO_Z)||null; this.podEv=this.events.find(e=>e.z>=MONO_Z)||null; }
+    else { this.monoEv=null; this.podEv=this.events[0]||null; }
+    return this;
+  }
+}
+
+const winU=(ph,n,u)=>{const w=ph.win&&ph.win[n]; return w?clamp((u-w[0])/(w[1]-w[0])):u;};
+const EASES={lin:u=>u,in:u=>u*u,out:u=>1-(1-u)*(1-u)};
+const posE=(ph,n,u)=>{const k=ph.ease&&ph.ease[n]; return k?EASES[k](u):easeIO(u);};
+function posXZ(ph,n,u0){
+  const u=winU(ph,n,u0), a=ph.start[n], b=ph.end[n], e=posE(ph,n,u), bl=ph.bulge[n]||0;
+  return [a.x+(b.x-a.x)*e+bl*Math.sin(Math.PI*u), a.z+(b.z-a.z)*e];
+}
+function evalPlayer(ph,n,u0){
+  const u=winU(ph,n,u0);
+  const a=ph.start[n], b=ph.end[n], e=easeIO(u), je=jumpE(u), s={};
+  const jc=ph.kind==='jump'&&n!=='T'&&n!=='DM';
+  const pe=posE(ph,n,u);
+  for(const k of CH){const w=(jc&&(k==='lift'||k==='arms'))?je:(k==='x'||k==='z')?pe:e; s[k]=a[k]+(k==='yaw'?wrapPi(b[k]-a[k]):(b[k]-a[k]))*w;}
+  const bl=ph.bulge[n]; if(bl) s.x+=bl*Math.sin(Math.PI*u);
+  const pu=ph.pulse[n]; if(pu) for(const k in pu) s[k]+=pu[k].a*SHAPES[pu[k].shape](u);
+  s.tgt=u<0.5?(a.tgt??b.tgt):(b.tgt??a.tgt); s.side=u<0.5?(a.side??b.side):(b.side??a.side);
+  s.tgt2=u<0.5?(a.tgt2??b.tgt2):(b.tgt2??a.tgt2);
+  if(s.lift<0) s.lift=0; s.grip=clamp(s.grip);
+  // foulée : vitesse et direction du déplacement, phase de course selon la distance parcourue
+  const len=ph.len?ph.len[n]||0:0; s.run=0; s.mvx=0; s.mvz=1;
+  if(len>0.05&&s.lift<0.05){
+    const du=0.03, ua=Math.max(0,u0-du), ub=Math.min(1,u0+du), p1=posXZ(ph,n,ua), p2=posXZ(ph,n,ub);
+    const dx=p2[0]-p1[0], dz=p2[1]-p1[1], d=Math.hypot(dx,dz);
+    s.run=clamp(d/Math.max(1e-4,(ub-ua)*ph.dur)/3.4); if(d>1e-6){s.mvx=dx/d; s.mvz=dz/d;}
+  }
+  s.gait=((ph.cum?ph.cum[n]||0:0)+len*pe)/STRIDE*2*Math.PI;
+  return s;
+}
+function phaseAt(seq,t){
+  t=clamp(t,0,seq.total); let i=seq.phases.length-1;
+  for(let k=0;k<seq.phases.length;k++){const p=seq.phases[k]; if(t<p.t0+p.dur){i=k;break;}}
+  const ph=seq.phases[i]; return {i,ph,u:clamp((t-ph.t0)/ph.dur)};
+}
+function evalSeq(seq,t){
+  const r=phaseAt(seq,t); r.st={};
+  for(const n in r.ph.end) r.st[n]=evalPlayer(r.ph,n,r.u);
+  return r;
+}
+/* ---------- Squelette : position de chaque articulation ---------- */
+const v3={add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]],mul:(a,s)=>[a[0]*s,a[1]*s,a[2]*s],
+  dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],len:a=>Math.hypot(a[0],a[1],a[2]),lerp:(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t],
+  norm:a=>{const l=Math.hypot(a[0],a[1],a[2])||1;return [a[0]/l,a[1]/l,a[2]/l];}};
+const THIGH=0.41, SHIN=0.38, UPA=0.31, FORE=0.28;
+const rotL=(v,L)=>[v[0],v[1]*Math.cos(L)-v[2]*Math.sin(L),v[1]*Math.sin(L)+v[2]*Math.cos(L)];
+function armIK(S,k,handT){
+  const sh=S.sh[k], dirH=v3.norm(v3.sub(handT,sh)), wT=v3.sub(handT,v3.mul(dirH,0.06));
+  const to=v3.sub(wT,sh), d=Math.max(0.08,Math.min(v3.len(to),UPA+FORE-0.005)), n=v3.norm(to);
+  const a=(UPA*UPA-FORE*FORE+d*d)/(2*d), h=Math.sqrt(Math.max(0,UPA*UPA-a*a));
+  let pole=v3.add(v3.mul(S.left,k===0?1:-1),[0,-0.7,0]); pole=v3.norm(v3.sub(pole,v3.mul(n,v3.dot(pole,n))));
+  const el=v3.add(v3.add(sh,v3.mul(n,a)),v3.mul(pole,h)), wr=v3.add(sh,v3.mul(n,d)), f=v3.norm(v3.sub(wr,el));
+  S.el[k]=el; S.wr[k]=wr; S.hand[k]=v3.add(wr,v3.mul(f,0.06)); S.hdir[k]=f;
+}
+/* Lifteur avant : mains au-dessus des genoux du sauteur. Lifteur arrière : mains sous les fesses. */
+const innerIdx=(S,O)=>v3.len(v3.sub(S.sh[0],O.pel))<v3.len(v3.sub(S.sh[1],O.pel))?0:1;
+function applyGrip(S,st,J,sk){
+  const g=clamp(st.grip); if(g<0.01||!J) return;
+  /* Maul : 'rip' = arracheur (bras intérieur sur le ballon, l'autre lié au sauteur),
+     'bind' = partenaire (lié à l'arracheur et au sauteur), 'hk' = talonneur qui arrache le ballon à l'arracheur. */
+  if(st.side==='rip'||st.side==='bind'||st.side==='hk'){
+    const O=st.tgt2?sk[st.tgt2]:null, tg=[null,null];
+    if(st.side==='hk'){
+      const b=J.ball||v3.lerp(J.hand[0],J.hand[1],0.5);
+      tg[0]=v3.add(b,v3.mul(S.left,0.07)); tg[1]=v3.add(b,v3.mul(S.left,-0.07));
+    } else {
+      const ki=O?innerIdx(S,O):0, ko=1-ki;
+      tg[ko]=v3.add(v3.add(J.pel,[0,0.12,0]),v3.mul(v3.norm([S.pel[0]-J.pel[0],0,S.pel[2]-J.pel[2]]),0.13));
+      if(st.side==='rip'){
+        const jh=v3.add(v3.lerp(J.hand[0],J.hand[1],0.5),v3.mul(J.flat,0.05));
+        const chest=O?v3.add(v3.add(v3.lerp(S.pel,O.pel,0.5),[0,0.36,0]),v3.mul(S.flat,0.3)):jh;
+        tg[ki]=v3.lerp(jh,chest,clamp(st.hold)); S.ki=ki;
+      } else tg[ki]=O?v3.add(v3.add(O.pel,v3.mul(O.up,0.38)),v3.mul(O.flat,-0.17)):J.pel;
+    }
+    for(const k of [0,1]){
+      armIK(S,k,v3.lerp(S.hand[k],tg[k],g));
+      S.palm[k]=v3.norm(v3.lerp(S.palm[k],v3.norm(v3.sub(tg[k],S.sh[k])),g*0.6));
+    }
+    if(st.side==='rip') S.ball=S.hand[S.ki];
+    return;
+  }
+  if(st.side==='mb'){   // en maul : les lifteurs se lient sur les flancs du sauteur
+    let tg=[1,-1].map(k=>v3.add(v3.add(J.pel,v3.mul(J.up,0.28)),v3.mul(J.hipLeft,0.2*k)));
+    if(v3.dot(tg[0],S.left)<v3.dot(tg[1],S.left)) tg=[tg[1],tg[0]];
+    for(const k of [0,1]){armIK(S,k,v3.lerp(S.hand[k],tg[k],g)); S.palm[k]=v3.norm(v3.lerp(S.palm[k],v3.norm(v3.sub(J.pel,S.hand[k])),g));}
+    return;
+  }
+  // avant : juste au-dessus des genoux (sur les manchons) ; arrière : sous les fesses, en haut des ischios
+  const raw=st.side==='f'?[0,1].map(k=>v3.lerp(J.knees[k],J.hips[k],0.2)):[0,1].map(k=>v3.add(v3.lerp(J.hips[k],J.knees[k],0.08),[0,-0.08,0]));
+  const toL=v3.norm([S.pel[0]-J.pel[0],0,S.pel[2]-J.pel[2]]);
+  let tg=raw.map(p=>v3.add(p,v3.mul(toL,st.side==='f'?0.075:0.085)));
+  let rw=raw;
+  if(v3.dot(tg[0],S.left)<v3.dot(tg[1],S.left)){tg=[tg[1],tg[0]]; rw=[raw[1],raw[0]];}
+  for(const k of [0,1]){
+    armIK(S,k,v3.lerp(S.hand[k],tg[k],g));
+    S.palm[k]=v3.norm(v3.lerp(S.palm[k],v3.norm(v3.sub(rw[k],S.hand[k])),g));
+  }
+}
+function ballFor(ph,u){
+  const b=ph.ball;
+  if(b.mode==='held') return handsMid(evalPlayer(ph,b.by,u));
+  const rel=b.rel??(b.mode==='throw'?0.1:0.05), arr=b.arr??(b.mode==='throw'?0.92:0.9);
+  if(u<=rel) return handsMid(evalPlayer(ph,b.from,u),b.from==='T');
+  if(u>=arr) return handsMid(evalPlayer(ph,b.to,u),b.to==='T');
+  const p0=handsMid(evalPlayer(ph,b.from,rel),b.from==='T'), p1=handsMid(evalPlayer(ph,b.to,arr),b.to==='T');
+  const s=(u-rel)/(arr-rel), d=Math.hypot(p1[0]-p0[0],p1[2]-p0[2]);
+  const h=b.mode==='throw'?0.45+d*0.045:0.35;
+  return [p0[0]+(p1[0]-p0[0])*s, p0[1]+(p1[1]-p0[1])*s+h*4*s*(1-s), p0[2]+(p1[2]-p0[2])*s];
+}
+function oppStates(seq,t,mode){
+  const res=seq.oppHomes.map(z=>({x:OPPX,z,crouch:0.15,lift:0,arms:0,sigI:0,sigO:0,yaw:YAW_OPP,grip:0,hold:0,twist:0,lean:0,tuck:0,tgt:null,side:null}));
+  if(seq.oppMono){ // monolift prêt : le lifteur arrière tient déjà son sauteur
+    const [mj,ml]=seq.oppMono; Object.assign(res[mj],{crouch:0.4}); Object.assign(res[ml],{crouch:0.55,grip:0.85,tgt:'o'+mj,side:'r',yaw:Math.PI-0.12});
+    const [pf,pj,pr]=seq.oppPod; Object.assign(res[pj],{crouch:0.35});
+    Object.assign(res[pf],{crouch:0.45,grip:0.6,tgt:'o'+pj,side:'f',yaw:0.12}); Object.assign(res[pr],{crouch:0.45,grip:0.6,tgt:'o'+pj,side:'r',yaw:Math.PI-0.12});
+  }
+  if(mode==='follow') oppFollow(seq,t,res);
+  // Maul : les 3 adversaires les plus proches se lient face au maul et reculent quand il avance.
+  if(seq.goonIdx!=null){const r2=phaseAt(seq,t); if(r2.i>=seq.goonIdx){
+    const w=r2.i===seq.goonIdx?easeIO(r2.u):1, J=evalPlayer(r2.ph,seq.maulJ,r2.u);
+    const near=res.map((o,i)=>i).sort((a,b)=>Math.abs(res[a].z-J.z)-Math.abs(res[b].z-J.z)).slice(0,3).sort((a,b)=>res[a].z-res[b].z);
+    near.forEach((i,m)=>{const o=res[i], tx=J.x-0.62, tz=J.z+(m-1)*0.5;
+      o.x+=(tx-o.x)*w; o.z+=(tz-o.z)*w; o.yaw+=wrapPi(Math.PI/2-o.yaw)*w; o.crouch+=(0.8-o.crouch)*w;
+      o.lean=0.08*w; o.tuck=0.6*w; o.stance=w;
+      o.lift*=1-w; o.grip*=1-w; o.arms=0.35*w+o.arms*(1-w);});
+    res.forEach((o,i)=>{if(near.includes(i)) return; if(Math.abs(o.z-J.z)<1.6) o.x=Math.min(o.x,J.x-0.62-1.2*w);});
+  }}
+  return res;
+}
+/* Défense qui suit les feintes :
+   - chaque bloc adverse saute UNE seule fois, sur le premier saut ou la première feinte qui le concerne, puis c'est tout ;
+   - à 5, le monolift ne mord que devant ; le bloc de trois reste en lecture et ne saute que dans sa zone ;
+   - le bloc suit le sauteur qui menace (sur l'option du lanceur, il reste sur le leurre du fond) ;
+   - si le ballon part sur un coureur devant (option du lanceur), seul le dernier défenseur resté devant s'en occupe. */
+function contestLift(seq,ev,t){
+  if(!ev) return 0;
+  const d=t-ev.t0, [a,b,amp]=ev.kind==='feint'?[0.25,1.25,0.75]:[0.32,1.5,0.8];
+  return (d<a||d>b)?0:amp*Math.sin(Math.PI*(d-a)/(b-a));
+}
+function oppFollow(seq,t,res){
+  let fz=0; const N=6;
+  for(let k=0;k<N;k++){const r=evalSeq(seq,Math.max(0,t-0.25-k*0.09)); fz+=r.st[r.ph.dfocus].z;}
+  fz/=N;
+  const r=evalSeq(seq,Math.max(0,t-0.33)), ours=r.st[r.ph.dfocus];
+  if(seq.oppMono){
+    const [mj,ml]=seq.oppMono, l=contestLift(seq,seq.monoEv,t);
+    res[mj].lift=l; res[mj].arms=Math.min(1,l*1.4); res[ml].grip=0.95; res[ml].lift=l>0.3?0.04:0;
+    fz=Math.max(fz,7.45);
+  }
+  const lift=contestLift(seq,seq.podEv,t);
+  const zs=[fz-POD,fz,fz+POD];
+  const jIdx=seq.oppPod[1];
+  seq.oppPod.forEach((idx,m)=>{const o=res[idx]; o.z=clamp(zs[m],4.6,15.4); o.crouch=clamp(ours.crouch*0.9,0.25,0.7);
+    if(m===1){o.lift=lift;o.arms=Math.min(1,lift*1.4);}
+    else {o.grip=0.95; o.tgt='o'+jIdx; o.side=m===0?'f':'r'; o.yaw=m===0?0.12:Math.PI-0.12; o.lift=lift>0.3?0.04:0;}});
+  res.forEach((o,i)=>{if(seq.oppPod.includes(i)||(seq.oppMono&&seq.oppMono.includes(i))) return; let d=99;
+    seq.oppPod.forEach(p=>d=Math.min(d,Math.abs(res[p].z-o.z))); o.x=OPPX-(1-smooth(0.7,1.15,d))*1.0;});
+  // Le coureur lancé devant : le dernier défenseur resté devant le prend en charge (le bloc du fond ne vient pas).
+  const rt=evalSeq(seq,Math.max(0,t-0.3)), th=rt.ph.threat;
+  if(th&&seq.threatT0!=null){
+    const free=res.map((o,i)=>i).filter(i=>!seq.oppPod.includes(i)&&!(seq.oppMono&&seq.oppMono.includes(i))).sort((a,b)=>seq.oppHomes[a]-seq.oppHomes[b]);
+    const fi=free.length?free[0]:(seq.oppMono?seq.oppMono[1]:null);
+    if(fi!=null){
+      const s=rt.st[th], o=res[fi], w=smooth(0,0.7,t-0.3-seq.threatT0);
+      const tx=Math.min(OPPX,s.x-0.85), tz=s.z+0.35;
+      o.x+=(tx-o.x)*w; o.z+=(tz-o.z)*w; o.yaw+=wrapPi(Math.atan2(s.x-o.x,s.z-o.z)-o.yaw)*w;
+      o.crouch=0.35+0.15*w; o.grip=0; o.tgt=null; o.lift=0;
+    }
+  }
+  return res;
+}
+
+/* ---------- Touches à 4 ---------- */
+const C4={L1:5.0,S1:5.6,S2:6.2,S3:6.8}, O4={L1:5.0,S1:7.5,S2:10.5,S3:13.5}, C5={L1:5.0,S1:5.55,L2:6.1,S2:11.0,L3:11.55};
+
+/* Deux mains : S1 feinte puis file au fond (1 m devant les 15 m), S2 recule au milieu et feinte,
+   S3 recule loin sur S1 déjà placé. option : null (saut S3), 'pass' (S2 lancé, passe au 9), '2v1' (S2 lancé, 2 contre 1 avec le talonneur). */
+function deuxMains(s,podZ0,option){
+  s.feint('Feinte de saut sur S1','S1 simule le saut en se décalant sur le côté.',null,'out')
+   .add('S1 file au fond, S2 recule au milieu','S1 file directement se replacer au fond de la touche, 1 m devant la ligne des 15 m. S2 recule jusqu’au milieu de touche, L1 le suit devant et S3 se place derrière.',1.5,'move',x=>{x.exit('S1',14.0,LINE,0.6); x.pod('S2','L1','S3',10.0);})
+   .feint('Feinte de saut sur S2','Deuxième feinte : S2 simule le saut en se décalant sur le côté.',null,'out');
+  if(!option){
+    s.add('S2 se décale, S3 recule loin sur S1','S2 se rabat dans la ligne. S3 recule encore beaucoup, sur S1 déjà placé au fond ; L1 le suit devant.',1.3,'move',x=>{x.exit('S2',podZ0); x.pod('S3','L1','S1',13.45);});
+    return s.jump('Saut sur S3 au fond','S3 saute, lifté par L1 (avant) et S1 (arrière).');
+  }
+  // Option du lanceur : S2 ne saute pas, il reçoit lancé dans sa course juste avant la ligne des 5 m.
+  // Défense : le bloc du fond reste sur le leurre (S3) ; seul le dernier défenseur resté devant s'occupe de S2, avec le 9 adverse.
+  s.threat='S2';
+  s.add("S2 s'élance vers l'avant","Initiative du lanceur : S2 prend de la vitesse vers l'avant. S3 recule loin sur S1, L1 le suit : le bloc fixe la défense au fond.",1.0,'move',x=>{
+    x.pod('S3','L1','S1',13.45); x.mv('S2',7.6,{bulge:0.25}); x.easeP('S2','in'); x.set('S2',{yaw:Math.PI,crouch:0.15,grip:0,tgt:null,side:null});
+    x.mv('DM',6.6,{x:LINE+2.3});});
+  s.defFocus='S3'; s.roles={S2:'J'}; s.focus='S2';
+  s.add('Lancer dans la course de S2','S2 reçoit le ballon dans l’élan de sa course, juste avant la ligne des 5 m, sans sauter. Seul le dernier défenseur resté devant réagit ; le 9 adverse monte dans le couloir.',0.55,'throwrun',x=>{
+    x.mv('S2',5.0); x.easeP('S2','lin'); x.set('S2',{arms:0.6}); x.set('T',{arms:0.25}); x.pulse('T','arms',0.12,'windup');
+    x.cur.ball={mode:'throw',from:'T',to:'S2',rel:0.06,arr:0.95};
+    if(option==='pass'){ x.mv('O9',5.6,{x:-2.7}); x.set('O9',{yaw:1.9,crouch:0.25}); }});
+  s.ballBy='S2';
+  if(option==='pass'){
+    s.add('S2 passe au demi de mêlée','Dans sa course, S2 transmet au demi de mêlée bleu. Le 9 adverse et le dernier défenseur devant arrivent trop tard.',0.7,'pass',x=>{
+      x.mv('S2',4.2); x.easeP('S2','out'); x.set('S2',{arms:0.4,twist:0.9}); x.set('T',{arms:0});
+      x.cur.ball={mode:'pass',from:'S2',to:'DM',rel:0.3,arr:0.92}; x.mv('DM',5.4,{x:LINE+2.0}); x.set('DM',{arms:0.45});
+      x.mv('O9',4.9,{x:-1.7}); x.set('O9',{crouch:0.4,lean:0.2});});
+    s.ballBy='DM';
+    return s.add('Fin de l’action','Le demi de mêlée a le ballon.',0.6,'end',x=>x.set('S2',{twist:0,arms:0.1}));
+  }
+  // 2 contre 1 dans le couloir des 5 m avec le talonneur, face au demi de mêlée adverse.
+  s.add('S2 attaque le couloir des 5 m',"S2 garde le ballon et attaque le couloir des 5 m. Le talonneur, après son lancer, vient en soutien à l’extérieur : 2 contre 1 face au demi de mêlée adverse.",0.9,'run',x=>{
+    x.mv('S2',3.4,{x:-1.8}); x.easeP('S2','lin'); x.set('S2',{yaw:-2.17,arms:0.42});
+    x.mv('T',1.5,{x:-1.3}); x.set('T',{yaw:-1.2,arms:0.2,crouch:0});
+    x.mv('O9',3.9,{x:-3.6}); x.set('O9',{yaw:2.0,crouch:0.3});});
+  s.add('S2 fixe le 9 et passe au talonneur','S2 attire le demi de mêlée adverse sur lui, puis passe au talonneur décalé à l’extérieur.',0.7,'pass',x=>{
+    x.mv('S2',3.3,{x:-3.0}); x.easeP('S2','lin'); x.set('S2',{arms:0.4,twist:-0.75});
+    x.cur.ball={mode:'pass',from:'S2',to:'T',rel:0.35,arr:0.92};
+    x.mv('T',1.5,{x:-3.4}); x.easeP('T','lin'); x.set('T',{yaw:-Math.PI/2,arms:0.45});
+    x.mv('O9',3.4,{x:-3.45}); x.set('O9',{crouch:0.55,lean:0.3});});
+  s.ballBy='T';
+  return s.add('Le talonneur file dans le couloir','Le talonneur reçoit et file seul dans le couloir des 5 m : le 2 contre 1 est gagné.',1.4,'run',x=>{
+    x.mv('T',1.6,{x:-10}); x.easeP('T','out'); x.set('T',{arms:0.4});
+    x.mv('S2',3.1,{x:-3.5}); x.set('S2',{twist:0,crouch:0.4});
+    x.mv('O9',3.2,{x:-3.6}); x.set('O9',{crouch:0.75,lean:0.4});});
+}
+function c413(meta,option){
+  const s=new Seq(meta,C4,7.8).signal('both')
+    .setPod('S1','L1','S2',5.6,'Les lifteurs viennent sur S1','L1 devant et S2 derrière se mettent en position de lift sur S1.');
+  if(option){ s.st.O9.x=-3.3; s.st.O9.z=7.0; s.st.OT.x=-2.2; s.st.OT.z=4.8; }
+  return deuxMains(s,10.0,option);
+}
+
+const GROUPS=[
+ {id:'c4',tab:'À 4 serrée',sub:'Poing fermé',sign:'Poing fermé · S1 capitaine',
+  info:'<b>Poing fermé.</b> Les 4 joueurs sont serrés : L1 sur la ligne des 5 m, S1 collé à lui prêt à sauter, S2 derrière S1 prêt à le lifter, S3 derrière S2. S1 est capitaine de touche et choisit avec la main.',
+  formation:['Talonneur','L1','S1','S2','S3'],
+  calls:[
+   {code:'4.1.1',name:'Main intérieure',sum:'Saut direct sur S1.',build:m=>new Seq(m,C4,7.8).signal('int')
+      .setPod('S1','L1','S2',5.6,'Mise en place','L1 devant et S2 derrière se préparent à lifter S1.')
+      .jump('Lancer et saut direct sur S1','S1 saute, lifté par L1 (avant) et S2 (arrière).')},
+   {code:'4.1.2',name:'Main extérieure',sum:'Feinte sur S1, saut sur S2 qui a reculé de 2 pas.',build:m=>new Seq(m,C4,7.8).signal('ext')
+      .setPod('S1','L1','S2',5.6,'Les lifteurs viennent sur S1','L1 devant et S2 derrière se mettent en position de lift sur S1.')
+      .feint('Feinte de saut sur S1','S1 fait mine de sauter en se décalant sur le côté pour attirer la défense.',null,'out')
+      .add('S1 se décale, S2 recule de 2 pas','S1 se replace dans l’alignement, devant. S2 prend 2 pas de recul, L1 avance sur lui et S3 se place derrière.',1.1,'move',x=>{x.exit('S1',5.9); x.pod('S2','L1','S3',7.6);})
+      .jump('Saut sur S2','S2 saute, lifté par L1 (avant) et S3 (arrière).')},
+   {code:'4.1.3',name:'Deux mains',sum:'Double feinte S1 puis S2, saut sur S3 lifté par L1 et S1.',build:m=>c413(m,false)},
+   {code:'4.1.3',name:'Option lanceur · passe au 9',sum:'S2 reçoit lancé dans sa course juste avant les 5 m, puis passe au demi de mêlée.',build:m=>c413(m,'pass')},
+   {code:'4.1.3',name:'Option lanceur · 2 contre 1',sum:'S2 reçoit lancé et attaque le couloir des 5 m avec le talonneur, face au 9 adverse.',build:m=>c413(m,'2v1')},
+  ]},
+ {id:'o4',tab:'À 4 écartée',sub:'Toute la largeur',sign:'Écartée · S1 capitaine',
+  info:"<b>Touche écartée.</b> Les 4 joueurs prennent toute la largeur entre 5 et 15 m. C'est toujours S1 qui choisit avec ses mains.",
+  formation:['Talonneur','L1','·','S1','·','S2','·','S3'],
+  calls:[
+   {code:'4.2.1',name:'Main intérieure',sum:'S1 part au moment où S2 déclenche sa course, saut devant.',build:m=>new Seq(m,O4,10).signal('int')
+      .add('S2 déclenche sa course',"S2 part vers l'avant. S1 le regarde : sa course est le top départ.",0.55,'move',x=>x.mv('S2',9.3))
+      .setPod('S1','L1','S2',5.6,'S1 court sauter devant',"Dès que S2 déclenche, S1 court vers l'avant. L1 se place devant lui et S2 arrive derrière.",1.0)
+      .jump('Saut sur S1 devant','S1 saute, lifté par L1 (avant) et S2 (arrière).')},
+   {code:'4.2.2',name:'Main extérieure',sum:'S1 déclenche et vient lifter S2, qui saute sur place.',build:m=>new Seq(m,O4,10).signal('ext')
+      .setPod('S2','S1','S3',10.5,'S1 vient lifter S2','S1 déclenche et vient se placer devant S2. S3 arrive derrière.',1.0)
+      .jump('Saut sur place de S2','S2 saute sur place, lifté par S1 (avant) et S3 (arrière).')},
+   {code:'4.2.3',name:'Main intérieure + clap',sum:'S1 recule de 2 pas tout de suite, sans attendre : L1 court le lifter.',build:m=>new Seq(m,O4,10).signal('int',true)
+      .add('S1 recule, L1 court le lifter','Dès sa main annoncée, S1 recule de 2 pas sans attendre L1. C’est à L1 de courir pour venir le lifter ; S2 vient derrière.',1.25,'set',x=>{
+        x.pod('S1','L1','S2',8.9); x.win('S1',0,0.35); x.win('S2',0.1,1);})
+      .jump('Saut sur S1','S1 saute, lifté par L1 (avant) et S2 (arrière).')},
+   {code:'4.2.3',name:'Main extérieure + clap',sum:'S2 recule vite de 2 pas, S1 se retourne pour courir le lifter.',build:m=>new Seq(m,O4,10).signal('ext',true)
+      .add('S2 recule vite, S1 se retourne','Dès la main annoncée, S2 recule vite de 2 pas vers le fond. S1 se retourne et court le lifter par devant ; S3 vient derrière.',1.25,'set',x=>{
+        x.pod('S2','S1','S3',11.9); x.win('S2',0,0.35); x.win('S1',0.05,1); x.win('S3',0.1,1);})
+      .jump('Saut sur S2 au fond','S2 saute, lifté par S1 (avant) et S3 (arrière).')},
+   {code:'4.2.4',name:'Deux mains',sum:'Feinte S1 qui file au fond, feinte S2 au milieu, saut sur S3 reculé sur S1.',build:m=>{
+      const s=new Seq(m,O4,10).signal('both')
+        .setPod('S1','L1','S2',7.5,'Les lifteurs viennent sur S1','L1 et S2 viennent se placer pour lifter S1.',0.9);
+      return deuxMains(s,6.5,null);}},
+   {code:'4.2.5',name:'Flash McQueen',sum:'S1 feinte un pas devant puis vient sur S2. Feinte sur S2, S1 sort, S2 court sauter devant sur L1.',build:m=>new Seq(m,O4,10)
+      .add('Annonce « Flash McQueen »','Main ouverte : S1 lance la combinaison Flash McQueen.',1.3,'signal',x=>x.pop('S1','Flash McQueen'))
+      .add('S1 fait un pas en avant','Pour feinter, S1 fait un pas en avant.',0.55,'move',x=>{x.mv('S1',6.8); x.set('S1',{crouch:0.35});})
+      .setPod('S2','S1','S3',10.5,'S1 repart derrière lifter S2','Aussitôt, S1 repart vers l’arrière pour lifter S2 par devant. S3 vient derrière S2.',1.0)
+      .feint('Feinte de saut sur S2, S1 sort','S2 simule le saut et, au même moment, S1 se décale : il ne liftera pas.',null,'plus')
+      .add('S2 court sauter devant','S1 se rabat dans la ligne vers le fond. S2 court devant sur L1, S3 le suit pour le lifter par derrière.',1.25,'move',x=>{x.pod('S2','L1','S3',5.6); x.exit('S1',10.6);})
+      .jump('Saut sur S2 devant','S2 saute, lifté par L1 (avant) et S3 (arrière).')},
+  ]},
+ {id:'c5',tab:'À 5 serrée',sub:'Bloc devant',sign:'À 5 serrée',
+  info:'<b>Touche à 5 serrée.</b> Un bloc de saut prêt devant les 5 m (L1, S1, L2) et un sauteur avec son lifteur arrière plus écartés, au milieu / fond de touche (S2, L3).',
+  formation:['Talonneur','L1','S1','L2','·','S2','L3'],
+  calls:[
+   {code:'Directe',name:'Saut sur S1',sum:'Saut en intention sur S1.',build:m=>new Seq(m,C5,8.5)
+      .add('Annonce « Directe »','Le bloc avant est prêt : saut en intention sur S1.',1.2,'signal',x=>x.pop('S1','Directe'))
+      .setPod('S1','L1','L2',5.55,'Mise en place','L1 devant et L2 derrière se préparent à lifter S1.',0.5)
+      .jump('Saut sur S1','S1 saute, lifté par L1 (avant) et L2 (arrière).')},
+   {code:'OUI',name:'Feinte S1, saut S2',sum:'S1 crie « OUI » et feinte, L1 court lifter S2.',build:m=>c5oui(m,false)},
+   {code:'OUI OUI',name:'Retour sur S1',sum:'La défense a suivi : L3 quitte S2 et revient lifter S1.',build:m=>c5oui(m,true)},
+  ]},
+ {id:'ty',tab:'Tyson',sub:'À 5 écartée',sign:'Tyson · à 5 écartée',
+  info:"<b>Tyson.</b> Touche à 5 écartée. Zone T = S1, zone S = S2, zone N = S3. L'appel commence par la zone, puis les signes + et −.",
+  formation:['Talonneur','L1','S1 · T','S2 · S','S3 · N','L2'],tyson:true},
+];
+
+function c5oui(meta,twice){
+  const s=new Seq(meta,C5,8.5)
+    .add(twice?'Annonce « OUI OUI »':'Annonce « OUI »',twice?"Suite du « OUI » : si la défense suit sur S2, on revient sur S1.":"S1 va crier « OUI » : feinte sur le bloc avant.",1.1,'signal')
+    .setPod('S1','L1','L2',5.55,'Mise en place','L1 devant et L2 derrière se placent sur S1.',0.5)
+    .feint('« OUI » : feinte de S1','S1 crie « OUI » et feinte le saut sur place.','OUI !')
+    .add('L1 court lifter S2','L1 part sur le côté pour aller lifter S2. L2 attend que L1 l’ait dépassé, puis passe devant S1 et se met en lifteur avant, face à lui.',1.35,'move',x=>{
+      x.pod('S2','L1','L3',11.0); x.cur.bulge.L1=0.8;
+      x.mv('L2',5.0,{bulge:0.5}); x.set('L2',{crouch:0.5,grip:0.8,tgt:'S1',side:'f',yaw:-0.12}); x.win('L2',0.38,1);
+      x.set('S1',{crouch:0.35});});
+  if(!twice) return s.jump('Saut sur S2','S2 saute, lifté par L1 (avant) et L3 (arrière).');
+  return s.feint('Feinte de saut sur S2','La défense a suivi : S2 feinte à son tour.')
+    .add('L3 sort et revient lifter S1','L3 quitte S2 et file derrière S1. L2 est déjà devant S1 ; L1 reste sur S2.',1.3,'move',x=>{x.pod('S1','L2','L3',5.55); x.cur.bulge.L3=0.8; x.set('L1',{crouch:0.3}); x.set('S2',{crouch:0.2});})
+    .jump('Saut sur S1','S1 saute à sa place de départ, lifté par L2 (avant) et L3 (arrière).');
+}
+
+/* ---------- Tyson ---------- */
+const ZN=['T','S','N'], ZP=[5.6,9.5,13.0];
+const TY={L1:5.0,S1:7.0,S2:9.5,S3:11.5,L2:14.0};
+const TY_INIT=[['S1','L1','S2'],['S2','S1','S3'],['S3','S2','L2']];
+const TY_EX=['T directe','S directe','N directe','N +','S −','N ++','T − +','S − ++'];
+
+function parseTyson(text){
+  const norm=text.replace(/[−–—]/g,'-').trim();
+  const m=norm.match(/[A-Za-zÀ-ÿ]+/);
+  if(!m) throw new Error('Commence par la zone T, S ou N (ou un mot qui commence par cette lettre), par exemple « S − ++ ».');
+  const word=m[0], L=word[0].toUpperCase(), zi=ZN.indexOf(L);
+  if(zi<0) throw new Error(`« ${word} » commence par ${L} : la première lettre doit être T, S ou N.`);
+  const ops=[...norm.slice(m.index+word.length)].filter(c=>c==='+'||c==='-');
+  let z=zi;
+  ops.forEach((o,k)=>{
+    if(o==='+'){ if(z===0) throw new Error(`Le signe n°${k+1} (« + ») est impossible : on est déjà en zone T, on ne peut pas avancer plus.`); z--; }
+    else { if(z===2) throw new Error(`Le signe n°${k+1} (« − ») est impossible : on est déjà en zone N, on ne peut pas reculer plus.`); z++; }
+  });
+  const grp=norm.slice(m.index+word.length).replace(/[^+\-\s]/g,'').trim().replace(/\s+/g,' ').replace(/-/g,'−');
+  const label=ZN[zi]+' '+(ops.length?grp:'directe');
+  return {word,zi,ops,label};
+}
+function closestFree(s,inPod,out,tz){
+  let best=null,bd=1e9;
+  for(const n of s.line){ if(inPod.has(n)||n===out) continue; const d=Math.abs(s.st[n].z-tz); if(d<bd){bd=d;best=n;} }
+  return best;
+}
+/* Le joueur qui sort se rabat dans la ligne au plus près de l'endroit où il est (de préférence vers le fond),
+   sans revenir à sa position de départ. */
+function exitAvail(s,n){
+  const cur=s.st[n].z, others=s.line.filter(m=>m!==n).map(m=>s.st[m].z);
+  let best=null;
+  for(let k=0;k<=40&&best===null;k++) for(const sg of [1,-1]){
+    const c=cur+sg*k*0.15; if(c<5||c>15) continue;
+    if(others.every(o=>Math.abs(o-c)>0.8)){best=c;break;}
+  }
+  s.exit(n,best??cur,LINE,0.5);
+}
+function buildTyson(p,goon=false){
+  const s=new Seq({code:'Tyson',name:p.label+(goon?' + GOON':''),sign:'Tyson · zone '+ZN[p.zi],tyson:true,goon},TY,10.3);
+  const opsTxt=p.ops.length?' Puis : '+p.ops.map(o=>o==='+'?'« + » (le lifteur avant sort, on avance)':'« − » (le sauteur sort, saut sur le lifteur arrière)').join(', ')+'.':' Saut direct.';
+  const wordTxt=p.word.length>1?`Mot annoncé « ${p.word} » : première lettre ${p.word[0].toUpperCase()}, donc zone ${ZN[p.zi]}.`:`Zone ${ZN[p.zi]} annoncée.`;
+  s.add(`Annonce « ${p.label} »`,wordTxt+opsTxt,1.5,'signal');
+  let zi=p.zi, [j,f,r]=TY_INIT[zi];
+  const direct=['S1 avance en zone T : L1 devant lui, S2 vient derrière.','S3 déclenche : S1 et S3 viennent sur S2, qui saute sur place.','S3 recule sur L2, S2 vient se placer devant lui.'][zi];
+  s.setPod(j,f,r,ZP[zi],`Mise en place zone ${ZN[zi]}`,direct,1.0);
+  if(!p.ops.length) return s.jump(`Saut direct zone ${ZN[zi]}`,`${j} saute, lifté par ${f} (avant) et ${r} (arrière).`);
+  const feintFor=(op,lead)=>op==='+'
+    ? s.feint(`Feinte de ${j} et décalage de ${f} (zone ${ZN[zi]})`,`${lead}${j} simule le saut sur place et, au même moment, ${f} (lifteur avant) se décale.`,null,'plus')
+    : s.feint(`Feinte de saut de ${j} vers le côté (zone ${ZN[zi]})`,`${lead}${j} simule le saut en se décalant sur le côté : il sort.`,null,'out');
+  feintFor(p.ops[0],'Les lifteurs sont en place. ');
+  p.ops.forEach((o,k)=>{
+    const inPod=new Set([j,f,r]);
+    if(o==='+'){
+      const out=f; zi--; const nf=closestFree(s,inPod,out,ZP[zi]-POD), J=j, R=r, Z=zi;
+      s.add(`« + » : ${J} avance en zone ${ZN[Z]}`,`${out} s'est décalé et se rabat dans la ligne, de profil face aux adversaires. ${J} avance avec ${R} derrière lui, ${nf} vient lifter devant.`,1.15,'move',x=>{x.pod(J,nf,R,ZP[Z]); exitAvail(x,out);});
+      f=nf;
+    }else{
+      const out=j; zi++; const nr=closestFree(s,inPod,out,ZP[zi]+POD), F=f, R=r, Z=zi;
+      s.add(`« − » : saut sur ${R}`,`${out} est sorti et se rabat dans la ligne, de profil face aux adversaires. ${R} devient sauteur et recule en zone ${ZN[Z]}, ${F} avance sur lui et ${nr} vient derrière.`,1.15,'move',x=>{x.pod(R,F,nr,ZP[Z]); exitAvail(x,out);});
+      j=r; r=nr;
+    }
+    if(k===p.ops.length-1) s.jump(`Saut sur ${j} en zone ${ZN[zi]}`,`${j} saute, lifté par ${f} (avant) et ${r} (arrière).`);
+    else feintFor(p.ops[k+1],'');
+  });
+  return s;
+}
+
+/* =====================================================================
+   2. SCÈNE 3D
+   ===================================================================== */
+const stage=document.getElementById('stage'), cv=document.getElementById('cv');
+let renderer;
+try{ renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true}); }
+catch(e){ stage.insertAdjacentHTML('beforeend','<div id="loadErr">La 3D (WebGL) n\'est pas disponible sur cet appareil ou ce navigateur.</div>'); throw e; }
+// Téléphone ou tablette : résolution de rendu un peu réduite pour garder une animation fluide
+const MOBILE=matchMedia('(pointer: coarse)').matches||Math.min(screen.width,screen.height)<700;
+renderer.setPixelRatio(Math.min(MOBILE?1.5:2,window.devicePixelRatio||1));
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
+renderer.info.autoReset=false;   // compteurs remis à zéro une fois par image (le post-traitement fait plusieurs rendus)
+const scene=new THREE.Scene();
+scene.background=new THREE.Color('#101c30'); scene.fog=new THREE.Fog('#101c30',90,260);
+const camera=new THREE.PerspectiveCamera(42,1,0.1,600);
+const controls=new OrbitControls(camera,cv);
+controls.enableDamping=true; controls.maxPolarAngle=1.5; controls.minDistance=2.5; controls.maxDistance=90;
+
+// Éclairage d'environnement : RoomEnvironment pré-filtré par PMREMGenerator (pas de fichier HDRI externe)
+const pmrem=new THREE.PMREMGenerator(renderer);
+scene.environment=pmrem.fromScene(new RoomEnvironment(renderer),0.04).texture;
+scene.add(new THREE.HemisphereLight('#d6e4ff','#21452a',0.55));
+const sun=new THREE.DirectionalLight('#fff6e8',2.1);
+sun.position.set(12,20,-6); sun.castShadow=true; sun.shadow.mapSize.set(MOBILE?1024:2048,MOBILE?1024:2048);
+Object.assign(sun.shadow.camera,{left:-15,right:15,top:15,bottom:-15,near:1,far:70});
+sun.shadow.bias=-0.0005; sun.target.position.set(0,0,9); scene.add(sun,sun.target);
+
+function canvasTex(draw,w,h){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;return t;}
+function buildField(){
+  const grass=canvasTex((g,w,h)=>{for(let i=0;i<8;i++){g.fillStyle=i%2?'#2f7b3c':'#2a7137';g.fillRect(0,i*h/8,w,h/8);}
+    for(let k=0;k<5000;k++){g.fillStyle=`rgba(0,0,0,${Math.random()*0.06})`;g.fillRect(Math.random()*w,Math.random()*h,2,2);}},512,512);
+  // Terrain : touche en z=0 et z=70, ligne médiane x=-16, 22 m x=12 et -44, essai x=34 et -66, ballon mort x=44 et -76
+  grass.wrapS=grass.wrapT=THREE.RepeatWrapping; grass.repeat.set(120/40,70/40);
+  const f=new THREE.Mesh(new THREE.PlaneGeometry(120,70),new THREE.MeshStandardMaterial({map:grass,roughness:1}));
+  f.rotation.x=-Math.PI/2; f.position.set(-16,0,35); f.receiveShadow=true; scene.add(f);
+  const out=new THREE.Mesh(new THREE.PlaneGeometry(320,260),new THREE.MeshStandardMaterial({color:'#1f4d2a',roughness:1}));
+  out.rotation.x=-Math.PI/2; out.position.set(-16,-0.004,35); out.receiveShadow=true; scene.add(out);
+  const white=new THREE.MeshStandardMaterial({color:'#f1f2ec',roughness:1});
+  const lines=[]; const strip=(w,d,x,z)=>{const g=new THREE.PlaneGeometry(w,d); g.rotateX(-Math.PI/2); g.translate(x,0.01,z); lines.push(g);};
+  strip(120,0.12,-16,-0.06); strip(120,0.12,-16,70.06);
+  for(const x of [34,-66,44,-76,-16,12,-44]) strip(0.12,70,x,35);
+  for(const x of [-6,-26]) for(let z=0;z<70;z+=2) strip(0.1,1,x,z+0.5);
+  for(const zl of [5,15,55,65]) for(let x=-66;x<34;x+=2) strip(1,0.1,x+0.5,zl);
+  { const m=new THREE.Mesh(mergeGeometries(lines,false),white); m.receiveShadow=true; scene.add(m); }   // toutes les lignes = un seul appel de dessin
+  // poteaux
+  const post=new THREE.MeshStandardMaterial({color:'#f4f4f0',roughness:0.5}), pad=new THREE.MeshStandardMaterial({color:'#1f5fd6',roughness:0.8});
+  for(const x of [34,-66]){
+    for(const z of [32.2,37.8]){const u=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.09,14,10),post);u.position.set(x,7,z);u.castShadow=true;scene.add(u);
+      const p=new THREE.Mesh(new THREE.BoxGeometry(0.5,1.8,0.5),pad);p.position.set(x,0.9,z);scene.add(p);}
+    const cb=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,5.6,10),post); cb.rotation.x=Math.PI/2; cb.position.set(x,3,35); scene.add(cb);
+  }
+  buildStadium();
+  const corr=new THREE.Mesh(new THREE.PlaneGeometry(1,10),new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:0.06,depthWrite:false}));
+  corr.rotation.x=-Math.PI/2; corr.position.set(0,0.012,10); scene.add(corr);
+  scene.add(decal('5 m',2.2,0.9,-5.5,5.75), decal('5 m',2.2,0.9,6.5,5.75), decal('15 m',2.6,0.9,-5.5,15.75), decal('15 m',2.6,0.9,6.5,15.75));
+  scene.add(decal('LIGNE DE TOUCHE',5,0.7,-8,-0.75,0.5));
+}
+function buildStadium(){
+  const conc=new THREE.MeshStandardMaterial({color:'#3a4354',roughness:0.95});
+  const seatA=new THREE.MeshStandardMaterial({color:'#1a3f8a',roughness:0.85}), seatB=new THREE.MeshStandardMaterial({color:'#16367a',roughness:0.85});
+  const roofM=new THREE.MeshStandardMaterial({color:'#222a38',roughness:0.7,side:THREE.DoubleSide});
+  const people=[], tiersA=[], tiersB=[];
+  function stand(o,a,out,len,rows,base,roof){
+    const rotY=-Math.atan2(a[2],a[0]), face=Math.atan2(-out[0],-out[2]);
+    for(let i=0;i<rows;i++){
+      const h=base+0.45*(i+1), d=i*0.9+0.45;
+      const g=new THREE.BoxGeometry(len,h,0.9); g.rotateY(rotY); g.translate(o[0]+out[0]*d,h/2,o[2]+out[2]*d); (i%2?tiersA:tiersB).push(g);
+      for(let s=0.4;s<len-0.3;s+=0.62){ if(Math.random()>0.86) continue;
+        const along=s-len/2+(Math.random()-0.5)*0.12;
+        people.push({x:o[0]+a[0]*along+out[0]*(d+0.05),y:h,z:o[2]+a[2]*along+out[2]*(d+0.05),face});}
+    }
+    const top=base+0.45*rows, back=rows*0.9+0.2;
+    const w=new THREE.Mesh(new THREE.BoxGeometry(len,top+3,0.4),conc); w.position.set(o[0]+out[0]*back,(top+3)/2,o[2]+out[2]*back); w.rotation.y=rotY; scene.add(w);
+    const fr=new THREE.Mesh(new THREE.BoxGeometry(len,base,0.3),conc); fr.position.set(o[0]-out[0]*0.1,base/2,o[2]-out[2]*0.1); fr.rotation.y=rotY; scene.add(fr);
+    if(roof){const rd=rows*0.9*0.75; const r=new THREE.Mesh(new THREE.BoxGeometry(len,0.3,rd),roofM);
+      r.position.set(o[0]+out[0]*(back-rd/2),top+4.2,o[2]+out[2]*(back-rd/2)); r.rotation.y=rotY; scene.add(r);}
+  }
+  stand([-16,0,-9],[1,0,0],[0,0,-1],112,16,1.2,true);
+  stand([-16,0,79],[1,0,0],[0,0,1],112,16,1.2,true);
+  stand([52,0,35],[0,0,1],[1,0,0],70,12,1.2,false);
+  stand([-84,0,35],[0,0,1],[-1,0,0],70,12,1.2,false);
+  for(const [list,mat] of [[tiersA,seatA],[tiersB,seatB]]){const m=new THREE.Mesh(mergeGeometries(list,false),mat); m.receiveShadow=true; scene.add(m);}
+  // public
+  const SHIRT=['#1f5fd6','#1f5fd6','#1f5fd6','#2a6ae8','#f2f4f8','#13254d','#13254d','#c8372e','#f6c445','#6b7a90'];
+  const SK=['#e2b48f','#c98f66','#8d5a3b','#f0c9a6','#b07a52'];
+  const bodyG=new THREE.BoxGeometry(0.42,0.5,0.3), headG=new THREE.IcosahedronGeometry(0.12,0);
+  const bodies=new THREE.InstancedMesh(bodyG,new THREE.MeshLambertMaterial(),people.length);
+  const heads=new THREE.InstancedMesh(headG,new THREE.MeshLambertMaterial(),people.length);
+  const m4=new THREE.Matrix4(), q=new THREE.Quaternion(), sc=new THREE.Vector3(1,1,1), p=new THREE.Vector3(), col=new THREE.Color(), Y=new THREE.Vector3(0,1,0);
+  people.forEach((h,i)=>{const s=0.9+Math.random()*0.2; sc.set(s,s,s); q.setFromAxisAngle(Y,h.face+(Math.random()-0.5)*0.3);
+    const stand=Math.random()<0.12?0.25:0;
+    p.set(h.x,h.y+0.25+stand,h.z); m4.compose(p,q,sc); bodies.setMatrixAt(i,m4); bodies.setColorAt(i,col.set(SHIRT[(Math.random()*SHIRT.length)|0]));
+    p.set(h.x,h.y+0.62*s+stand,h.z); m4.compose(p,q,sc); heads.setMatrixAt(i,m4); heads.setColorAt(i,col.set(SK[(Math.random()*SK.length)|0]));});
+  scene.add(bodies,heads);
+  // panneaux le long de la touche
+  const words=['TOUCHE','ALIGNEMENT','LANCER','SAUT','LIFT'];
+  for(let k=0;k<16;k++){
+    const x=-60+k*6.4, txt=words[k%words.length];
+    const tex=canvasTex((g,w,h)=>{g.fillStyle=k%2?'#13254d':'#1f5fd6';g.fillRect(0,0,w,h);g.fillStyle='#fff';g.font='700 70px "Barlow Condensed","Arial Narrow",sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(txt,w/2,h/2+4);},512,96);
+    const b=new THREE.Mesh(new THREE.BoxGeometry(6.2,0.9,0.12),[conc,conc,conc,conc,new THREE.MeshBasicMaterial({map:tex}),conc]);
+    b.position.set(x,0.45,-5.5); scene.add(b);
+  }
+  // mâts d'éclairage
+  const mast=new THREE.MeshStandardMaterial({color:'#5b6678'}), lamp=new THREE.MeshBasicMaterial({color:'#fffbe8'});
+  for(const [x,z] of [[-82,-26],[50,-26],[-82,96],[50,96]]){
+    const m=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.6,36,8),mast); m.position.set(x,18,z); scene.add(m);
+    const l=new THREE.Mesh(new THREE.BoxGeometry(6,3,0.5),lamp); l.position.set(x,36.5,z); l.lookAt(-16,0,35); scene.add(l);
+  }
+}
+function decal(text,w,h,x,z,op=0.75,size=0.75,color='#ffffff'){
+  const tex=canvasTex((g,cw,ch)=>{g.fillStyle=color;g.font=`700 ${Math.round(ch*size)}px "Barlow Condensed","Arial Narrow",sans-serif`;g.textAlign='center';g.textBaseline='middle';g.fillText(text,cw/2,ch/2);},512,Math.round(512*h/w));
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({map:tex,transparent:true,opacity:op,depthWrite:false}));
+  m.rotation.set(-Math.PI/2,0,Math.PI); m.position.set(x,0.014,z); return m;
+}
+const zoneDecals=new THREE.Group(); scene.add(zoneDecals);
+
+const ell=(g,z)=>{g.scale(1,1,z);return g;};
+// Membres et tronc en révolution (profil musculaire), hauteur unitaire de -0.5 à +0.5.
+const lathe=(pts,seg=14)=>{const g=new THREE.LatheGeometry(pts.map(([r,y])=>new THREE.Vector2(r,y)),seg); g.computeVertexNormals(); return g;};
+const TORSO_P=[[.001,-.3],[.158,-.29],[.165,-.2],[.155,-.1],[.168,0],[.198,.1],[.214,.18],[.21,.24],[.175,.28],[.1,.31],[.001,.315]];
+const torsoR=y=>{for(let i=1;i<TORSO_P.length;i++){const [r1,y1]=TORSO_P[i-1],[r2,y2]=TORSO_P[i]; if(y<=y2) return r1+(r2-r1)*(y-y1)/(y2-y1);} return 0.1;};
+const band=(y0,y1)=>{const pts=[]; for(let k=0;k<=4;k++){const y=y0+(y1-y0)*k/4; pts.push([torsoR(y)*1.018,y]);} const g=new THREE.LatheGeometry(pts.map(([r,y])=>new THREE.Vector2(r,y)),20); g.scale(1,1,0.68); return g;};
+const G={
+  seg:new THREE.CylinderGeometry(0.85,1,1,10),
+  thigh:lathe([[.001,-.5],[.85,-.49],[1,-.4],[1.04,-.2],[.95,.05],[.82,.3],[.72,.47],[.001,.5]]),
+  calf:lathe([[.001,-.5],[.8,-.48],[.95,-.35],[1,-.2],[.82,.1],[.6,.35],[.55,.5],[.001,.5]]),
+  upperArm:lathe([[.001,-.5],[.95,-.45],[1,-.25],[.95,0],[.85,.3],[.75,.48],[.001,.5]]),
+  foreArm:lathe([[.001,-.5],[.8,-.48],[1,-.3],[.9,0],[.66,.4],[.6,.5],[.001,.5]]),
+  neck:lathe([[.001,-.5],[1.1,-.45],[.95,0],[.9,.45],[.001,.5]],12),
+  sleeve:new THREE.CylinderGeometry(1.12,1.0,1,16),
+  cuff:new THREE.CylinderGeometry(1.0,1.0,1,16,1,true),
+  torso:ell(lathe(TORSO_P,22),0.66),
+  band1:band(0.02,0.1), band2:band(-0.12,-0.04),
+  collar:ell(new THREE.TorusGeometry(0.085,0.022,8,22),0.8),
+  shorts:ell(new THREE.CylinderGeometry(0.176,0.205,0.22,20),0.74),
+  waist:ell(new THREE.CylinderGeometry(0.18,0.178,0.035,20),0.74),
+  ball:new THREE.SphereGeometry(1,14,10),
+  skull:new THREE.SphereGeometry(0.112,18,14),
+  jaw:new THREE.SphereGeometry(0.075,14,10),
+  brow:new THREE.BoxGeometry(0.035,0.01,0.012),
+  sole:new THREE.BoxGeometry(0.1,0.022,0.29),
+  toe:new THREE.SphereGeometry(1,14,10),
+  heel:new THREE.BoxGeometry(0.088,0.075,0.08),
+  collarB:new THREE.CylinderGeometry(0.052,0.058,0.06,14),
+  stripe:new THREE.BoxGeometry(0.102,0.014,0.13),
+  stud:new THREE.CylinderGeometry(0.008,0.009,0.014,6),
+  hair:new THREE.SphereGeometry(0.117,18,10,0,Math.PI*2,0,1.35),
+  cap:new THREE.SphereGeometry(0.128,18,12,0,Math.PI*2,0,1.85),
+  capRib:new THREE.TorusGeometry(0.128,0.008,6,24,Math.PI),
+  earPad:new THREE.CylinderGeometry(0.052,0.052,0.035,14),
+  nose:new THREE.BoxGeometry(0.028,0.05,0.04),
+  eye:new THREE.SphereGeometry(0.014,8,6),
+  ear:new THREE.SphereGeometry(0.028,8,6),
+  palm:new THREE.BoxGeometry(0.075,0.085,0.03),
+  fingers:new THREE.BoxGeometry(0.072,0.075,0.024),
+  thumb:new THREE.BoxGeometry(0.024,0.052,0.024),
+  boot:new THREE.BoxGeometry(0.1,0.08,0.26),
+  capShell:new THREE.SphereGeometry(0.124,22,14,0,Math.PI*2,0,1.78),
+  capPad:new THREE.BoxGeometry(0.044,0.036,0.022),
+  earRing:new THREE.TorusGeometry(0.042,0.014,8,18),
+  earDisc:new THREE.CircleGeometry(0.03,16),
+  strap:new THREE.TorusGeometry(0.1,0.006,6,20,Math.PI),
+  tape:new THREE.TorusGeometry(0.117,0.011,6,24),
+  shortLeg:new THREE.CylinderGeometry(1.16,1.0,1,16),
+  num:new THREE.PlaneGeometry(0.17,0.17),
+  badge:new THREE.CircleGeometry(0.028,14),
+  ring:new THREE.RingGeometry(0.34,0.45,36)};
+const SKIN=['#e2b48f','#c98f66','#8d5a3b','#f0c9a6','#b07a52'];
+const HAIR=['#2b1d14','#151515','#5a3a22','#8a6a3a','#1d1a18'];
+const numTexCache={};
+function numTex(n,color){const k=n+color; if(!numTexCache[k]) numTexCache[k]=canvasTex((g,w,h)=>{g.fillStyle=color;g.font='700 110px "Barlow Condensed","Arial Narrow",sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText(String(n),w/2,h/2+6);},128,128); return numTexCache[k];}
+function labelSprite(text,bg){
+  const c=document.createElement('canvas'), g=c.getContext('2d'), H=72;
+  g.font='700 48px "Barlow Condensed","Arial Narrow",sans-serif'; const W=Math.ceil(g.measureText(text).width)+36;
+  c.width=W;c.height=H; g.fillStyle=bg; g.beginPath(); g.roundRect(2,2,W-4,H-4,14); g.fill();
+  g.fillStyle='#fff'; g.font='700 48px "Barlow Condensed","Arial Narrow",sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(text,W/2,H/2+2);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace;
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:t,depthTest:false,transparent:true}));
+  const h=0.32; sp.scale.set(h*W/H,h,1); sp.renderOrder=10; return sp;
+}
+/* =====================================================================
+   PERSONNAGE : SkinnedMesh + squelette (os nommés façon Mixamo).
+   Pose de repos : tous les os orientés comme le monde, joueur face à +Z,
+   membres vers le bas (-Y). Un gabarit par équipement, cloné avec SkeletonUtils.
+   ===================================================================== */
+const BONE_DEF=[
+  ['Hips',null,[0,0.93,0]],
+  ['Spine','Hips',[0,0.1,0]], ['Spine1','Spine',[0,0.15,0]], ['Spine2','Spine1',[0,0.15,0]],
+  ['Neck','Spine2',[0,0.16,0]], ['Head','Neck',[0,0.09,0]],
+];
+const SIDES=[['Left',1],['Right',-1]];
+for(const [S,s] of SIDES){
+  BONE_DEF.push([S+'Shoulder','Spine2',[s*0.07,0.09,0]],[S+'Arm',S+'Shoulder',[s*0.13,0,0]],
+    [S+'ForeArm',S+'Arm',[0,-UPA,0]],[S+'Hand',S+'ForeArm',[0,-FORE,0]],[S+'Fingers',S+'Hand',[0,-0.088,0]],
+    [S+'UpLeg','Hips',[s*0.1,-0.05,0]],[S+'Leg',S+'UpLeg',[0,-THIGH,0]],[S+'Foot',S+'Leg',[0,-SHIN,0]],[S+'ToeBase',S+'Foot',[0,-0.06,0.12]]);
+}
+const BI={}; BONE_DEF.forEach(([n],i)=>BI[n]=i);
+const BP={}; for(const [n,p,o] of BONE_DEF){const b=p?BP[p]:[0,0,0]; BP[n]=[b[0]+o[0],b[1]+o[1],b[2]+o[2]];}
+G.palmB=new THREE.BoxGeometry(0.03,0.085,0.075);
+G.fingersB=new THREE.BoxGeometry(0.024,0.075,0.072);
+const STUDS=[[-0.03,0.1],[0.03,0.1],[-0.03,0.03],[0.03,0.03],[-0.028,-0.09],[0.028,-0.09]];
+
+const V3=a=>new THREE.Vector3(a[0],a[1],a[2]);
+const QE=(x,y,z)=>new THREE.Quaternion().setFromEuler(new THREE.Euler(x,y,z));
+const _UPV=new THREE.Vector3(0,1,0);
+function xf(geo,pos,quat,scale){const g=geo.clone(); g.applyMatrix4(new THREE.Matrix4().compose(V3(pos),quat||new THREE.Quaternion(),V3(scale||[1,1,1]))); return g;}
+function segG(geo,a,b,r){const d=v3.sub(b,a), l=v3.len(d); return xf(geo,v3.lerp(a,b,0.5),new THREE.Quaternion().setFromUnitVectors(_UPV,V3(v3.norm(d))),[r,l,r]);}
+// Poids de peau : chaque sommet suit un ou deux os (fondu aux articulations).
+function skinAttr(geo,fn){
+  const p=geo.attributes.position, n=p.count, si=new Uint16Array(n*4), sw=new Float32Array(n*4);
+  for(let i=0;i<n;i++){const ws=fn(p.getX(i),p.getY(i),p.getZ(i)); ws.forEach(([b,w],k)=>{si[i*4+k]=b; sw[i*4+k]=w;});}
+  geo.setAttribute('skinIndex',new THREE.Uint16BufferAttribute(si,4)); geo.setAttribute('skinWeight',new THREE.Float32BufferAttribute(sw,4)); return geo;
+}
+const W1=b=>()=>[[BI[b],1]];
+const ramp=(lo,hi,y0,y1)=>(x,y)=>{const t=clamp((y-y0)/(y1-y0)); return t<=0?[[BI[lo],1]]:t>=1?[[BI[hi],1]]:[[BI[lo],1-t],[BI[hi],t]];};
+const CHAIN=[['Hips',0.93],['Spine',1.03],['Spine1',1.18],['Spine2',1.33]];
+const chainW=(x,y)=>{ if(y<=CHAIN[0][1]) return [[BI.Hips,1]];
+  for(let i=1;i<CHAIN.length;i++) if(y<=CHAIN[i][1]){const t=(y-CHAIN[i-1][1])/(CHAIN[i][1]-CHAIN[i-1][1]); return [[BI[CHAIN[i-1][0]],1-t],[BI[CHAIN[i][0]],t]];}
+  return [[BI.Spine2,1]]; };
+
+function buildTemplate(o){
+  const parts={}; const add=(k,g,fn)=>{(parts[k]||(parts[k]=[])).push(skinAttr(g,fn));};
+  const pel=BP.Hips, TY=pel[1]+0.29;
+  // maillot : tronc galbé, cerceaux, col, numéro au dos, écusson
+  add('jersey',xf(G.torso,[0,TY,0]),chainW);
+  add('hoop',xf(G.band1,[0,TY,0]),chainW); add('hoop',xf(G.band2,[0,TY,0]),chainW);
+  add('hoop',xf(G.collar,[0,TY+0.285,0],QE(Math.PI/2,0,0)),W1('Spine2'));
+  add('num',xf(G.num,[0,TY+0.13,-0.143],QE(0,Math.PI,0)),chainW);
+  add('hoop',xf(G.badge,[0.075,TY+0.16,0.144]),chainW);
+  // short de rugby : ceinture élastique, jambes larges et évasées
+  add('shorts',xf(G.shorts,[0,pel[1]-0.02,0]),W1('Hips'));
+  add('shorts',xf(G.waist,[0,pel[1]+0.09,0]),W1('Hips'));
+  for(const [S,s] of SIDES){
+    const hip=BP[S+'UpLeg'], knee=BP[S+'Leg'], ank=BP[S+'Foot'];
+    add('shorts',segG(G.shortLeg,[hip[0],hip[1]+0.02,hip[2]],v3.lerp(hip,knee,0.4),0.104),ramp(S+'UpLeg','Hips',hip[1]-0.12,hip[1]+0.02));
+    add('skin',segG(G.thigh,hip,knee,0.088),ramp(S+'UpLeg','Hips',hip[1]-0.08,hip[1]+0.02));
+    add('skin',xf(G.ball,knee,null,[0.062,0.062,0.062]),W1(S+'Leg'));
+    add('socks',segG(G.calf,knee,ank,0.074),ramp(S+'Leg',S+'UpLeg',knee[1]-0.04,knee[1]+0.02));
+    add('hoop',segG(G.cuff,v3.lerp(knee,ank,0.14),v3.lerp(knee,ank,0.24),0.073),W1(S+'Leg'));
+    if(o.blocks) add('block',segG(G.cuff,v3.lerp(knee,hip,0.1),v3.lerp(knee,hip,0.3),0.089),W1(S+'UpLeg'));
+    // chaussure à crampons
+    const b0=[ank[0],ank[1]-0.09,ank[2]], bp=(g,off,sc)=>xf(g,v3.add(b0,off),null,sc);
+    add('boot',bp(G.sole,[0,0.011,0.02]),W1(S+'Foot'));
+    add('boot',bp(G.toe,[0,0.042,0.05],[0.05,0.042,0.115]),W1(S+'Foot'));
+    add('boot',bp(G.heel,[0,0.05,-0.075]),W1(S+'Foot'));
+    add('boot',bp(G.collarB,[0,0.085,-0.045]),W1(S+'Foot'));
+    add('stripe',bp(G.stripe,[0,0.045,0]),W1(S+'Foot'));
+    for(const [sx,sz] of STUDS) add('stud',bp(G.stud,[sx,-0.006,sz]),W1(S+'Foot'));
+    // bras : épaule, manche, biceps, coude, avant-bras, strap, main
+    const sh=BP[S+'Arm'], el=BP[S+'ForeArm'], wr=BP[S+'Hand'], fg=BP[S+'Fingers'];
+    add('jersey',xf(G.ball,sh,null,[0.088,0.08,0.085]),()=>[[BI[S+'Arm'],0.7],[BI.Spine2,0.3]]);
+    add('jersey',segG(G.sleeve,sh,v3.lerp(sh,el,0.45),0.068),W1(S+'Arm'));
+    add('hoop',segG(G.cuff,v3.lerp(sh,el,0.4),v3.lerp(sh,el,0.47),0.077),W1(S+'Arm'));
+    add('skin',segG(G.upperArm,sh,el,0.06),W1(S+'Arm'));
+    add('skin',xf(G.ball,el,null,[0.046,0.046,0.046]),W1(S+'ForeArm'));
+    add('skin',segG(G.foreArm,el,wr,0.053),W1(S+'ForeArm'));
+    if(o.wrist) add('tape',segG(G.cuff,v3.lerp(el,wr,0.8),wr,0.05),W1(S+'ForeArm'));
+    add('skin',xf(G.palmB,[wr[0],wr[1]-0.045,wr[2]]),W1(S+'Hand'));
+    add('skin',xf(G.fingersB,[fg[0],fg[1]-0.036,fg[2]]),W1(S+'Fingers'));
+    add('skin',xf(G.thumb,[wr[0]-s*0.004,wr[1]-0.03,wr[2]+0.042],QE(-0.45,0,0)),W1(S+'Hand'));
+  }
+  // cou et tête
+  const nk=BP.Neck, HC=[0,BP.Head[1]+0.11,0], H=(g,off,q,sc)=>xf(g,v3.add(HC,off),q,sc);
+  add('skin',segG(G.neck,[0,nk[1]-0.04,0],[0,HC[1]-0.06,0],0.062),ramp('Spine2','Neck',nk[1]-0.03,nk[1]+0.04));
+  add('skin',H(G.skull,[0,0,0],null,[0.93,1.04,1]),W1('Head'));
+  add('skin',H(G.jaw,[0,-0.058,0.03],null,[1,0.8,1.1]),W1('Head'));
+  add('skin',H(G.nose,[0,-0.012,0.112]),W1('Head'));
+  for(const s of [1,-1]){ add('eye',H(G.eye,[s*0.04,0.022,0.098]),W1('Head')); add('hair',H(G.brow,[s*0.04,0.04,0.104],QE(0,0,s*0.15)),W1('Head')); }
+  if(o.cap){
+    // casque matelassé : coque, blocs, protège-oreilles, jugulaire
+    const qc=QE(-0.42,0,0), co=v3.add(HC,[0,0.006,-0.01]);
+    add('cap',xf(G.capShell,co,qc),W1('Head'));
+    for(const [th,n] of [[0,1],[0.42,7],[0.82,11],[1.2,13],[1.55,14]]) for(let i=0;i<n;i++){
+      const ph=i/n*Math.PI*2+(th>1?0.2:0), nv=new THREE.Vector3(Math.sin(th)*Math.cos(ph),Math.cos(th),Math.sin(th)*Math.sin(ph));
+      if(th>1.1&&nv.z>0.55) continue;
+      const q=qc.clone().multiply(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1),nv));
+      const pos=nv.clone().multiplyScalar(0.13).applyQuaternion(qc);
+      add('cap',xf(G.capPad,v3.add(co,[pos.x,pos.y,pos.z]),q),W1('Head'));
+    }
+    for(const s of [1,-1]){ add('cap',H(G.earRing,[s*0.123,-0.012,-0.005],QE(0,Math.PI/2,0)),W1('Head')); add('capPad',H(G.earDisc,[s*0.126,-0.012,-0.005],QE(0,s*Math.PI/2,0)),W1('Head')); }
+    add('cap',H(G.strap,[0,-0.02,0.015],QE(-0.25,0,Math.PI)),W1('Head'));
+  } else {
+    add('hair',H(G.hair,[0,0.005,-0.01],QE(-0.45,0,0)),W1('Head'));
+    for(const s of [1,-1]) add('skin',H(G.ear,[s*0.11,-0.005,-0.005]),W1('Head'));
+    if(o.tape) add('tape',H(G.tape,[0,0.035,-0.005],QE(Math.PI/2-0.25,0,0)),W1('Head'));
+  }
+  // fusion par matériau (un groupe = un appel de dessin par matériau)
+  const slots=Object.keys(parts);
+  const geo=mergeGeometries(slots.map(k=>mergeGeometries(parts[k],false)),true);
+  const bones=BONE_DEF.map(([n,,off])=>{const b=new THREE.Bone(); b.name=n; b.position.set(off[0],off[1],off[2]); return b;});
+  BONE_DEF.forEach(([,p],i)=>{if(p) bones[BI[p]].add(bones[i]);});
+  const root=new THREE.Group(); root.add(bones[0]);
+  const mesh=new THREE.SkinnedMesh(geo,slots.map(()=>new THREE.MeshStandardMaterial()));
+  mesh.castShadow=true; mesh.receiveShadow=true; mesh.frustumCulled=false; root.add(mesh);
+  root.updateMatrixWorld(true); mesh.bind(new THREE.Skeleton(bones));
+  return {root,slots};
+}
+
+/* ---------- Clips d'animation (un par geste), générés par images clés ---------- */
+const _eu=new THREE.Euler(), _qk=new THREE.Quaternion();
+const qa=(x=0,y=0,z=0)=>{_qk.setFromEuler(_eu.set(x,y,z)); return [_qk.x,_qk.y,_qk.z,_qk.w];};
+const LR=(b,x,y,z)=>({['Left'+b]:[x,y,z],['Right'+b]:[x,-y,-z]});   // miroir gauche/droite
+function poseClip(name,keys,dur=1){
+  const bones=new Set(); keys.forEach(k=>Object.keys(k.pose).forEach(b=>bones.add(b)));
+  const tracks=[...bones].map(b=>{const tm=[],vl=[]; for(const k of keys){tm.push(k.t*dur); vl.push(...qa(...(k.pose[b]||[0,0,0])));} return new THREE.QuaternionKeyframeTrack(b+'.quaternion',tm,vl);});
+  if(keys[0].hips){const tm=[],vl=[]; for(const k of keys){tm.push(k.t*dur); vl.push(...k.hips);} tracks.push(new THREE.VectorKeyframeTrack('Hips.position',tm,vl));}
+  return new THREE.AnimationClip(name,dur,tracks);
+}
+const still=(name,pose,hips)=>poseClip(name,[{t:0,pose,hips},{t:1,pose,hips}]);
+const REST={Hips:[0,0,0],Spine:[0,0,0],Spine1:[0,0,0],Spine2:[0,0,0],Neck:[0,0,0],Head:[0,0,0],
+  ...LR('Shoulder',0,0,0),...LR('Arm',0,0,0.12),...LR('ForeArm',-0.15,0,0),...LR('Hand',0,0,0),...LR('Fingers',0,0,-0.45),
+  ...LR('UpLeg',0,0,0),...LR('Leg',0,0,0),...LR('Foot',0,0,0)};
+const P_=o=>({...REST,...o});
+const RUNK=[0,0.25,0.5,0.75,1];
+const runKey=i=>{
+  const Lu=[-0.75,-0.1,0.45,-0.4,-0.75], Ll=[0.25,0.5,0.35,1.7,0.25], Lf=[-0.2,0,0.5,0.3,-0.2];
+  const j=(i+2)%4, la=[0.6,0,-0.6,0,0.6][i];
+  return {t:RUNK[i],hips:[0,[0.9,0.95,0.9,0.95,0.9][i],0],pose:P_({
+    LeftUpLeg:[Lu[i],0,0.04],LeftLeg:[Ll[i],0,0],LeftFoot:[Lf[i],0,0],
+    RightUpLeg:[Lu[j],0,-0.04],RightLeg:[Ll[j],0,0],RightFoot:[Lf[j],0,0],
+    LeftArm:[la,0,0.14],RightArm:[-la,0,-0.14],...LR('ForeArm',-1.4,0,0),...LR('Fingers',0,0,-0.9),
+    Spine:[0.2,0,0],Spine1:[0.05,0,0],Spine2:[0,[0.15,0,-0.15,0,0.15][i],0],Hips:[0,[-0.12,0,0.12,0,-0.12][i],0],Head:[-0.1,0,0]})};
+};
+const CLIPS={
+  idle:poseClip('idle',[{t:0,hips:[0,0.93,0],pose:P_({Spine2:[0.02,0,0]})},{t:0.5,hips:[0,0.925,0],pose:P_({Spine2:[-0.01,0,0],...LR('Arm',0.03,0,0.14)})},{t:1,hips:[0,0.93,0],pose:P_({Spine2:[0.02,0,0]})}],2.4),
+  ready:still('ready',P_({...LR('UpLeg',-0.95,0,0.05),...LR('Leg',1.6,0,0),...LR('Foot',-0.65,0,0),Spine:[0.25,0,0],Spine1:[0.1,0,0],Spine2:[0.05,0,0],Neck:[-0.2,0,0],Head:[-0.1,0,0],
+    ...LR('Arm',-0.45,0,0.15),...LR('ForeArm',-0.7,0,0),...LR('Fingers',0,0,-0.6)}),[0,0.63,-0.1]),
+  run:poseClip('run',[0,1,2,3,4].map(runKey),1),
+  jump:still('jump',P_({...LR('UpLeg',-0.05,0,-0.04),...LR('Leg',0.06,0,0),...LR('Foot',0.9,0,0),Spine:[-0.04,0,0],...LR('Arm',-2.9,0,0.1),...LR('ForeArm',-0.12,0,0),...LR('Fingers',0,0,-0.1)}),[0,0.93,0]),
+  maul:still('maul',P_({LeftUpLeg:[-1.1,0,0.1],LeftLeg:[1.3,0,0],LeftFoot:[-0.25,0,0],RightUpLeg:[0.3,0,-0.12],RightLeg:[0.6,0,0],RightFoot:[0.35,0,0],
+    Spine:[0.45,0,0],Spine1:[0.3,0,0],Spine2:[0.2,0,0],Neck:[-0.15,0,0],Head:[-0.1,0,0],...LR('Arm',-1.3,0,0.35),...LR('ForeArm',-0.9,0,0),...LR('Fingers',0,0,-0.8)}),[0,0.7,-0.12]),
+  // gestes de bras (ne touchent que les bras, se mélangent au corps)
+  aReady:still('aReady',{...LR('Arm',-0.45,0,0.15),...LR('ForeArm',-0.7,0,0),...LR('Hand',0,0,0),...LR('Fingers',0,0,-0.6)}),
+  aBall:still('aBall',{...LR('Arm',-0.5,0,0.25),...LR('ForeArm',-1.45,0,-0.45),...LR('Hand',0,0,0),...LR('Fingers',0,0,-0.35)}),
+  aUp:still('aUp',{...LR('Arm',-2.9,0,0.12),...LR('ForeArm',-0.12,0,0),...LR('Hand',0,0,0),...LR('Fingers',0,0,-0.1)}),
+  aLoad:still('aLoad',{...LR('Arm',-2.75,0,0.3),...LR('ForeArm',-1.2,0,-0.3),...LR('Hand',0,0,0),...LR('Fingers',0,0,-0.3)}),
+};
+const ARM_KNOTS=[[0,null],[0.2,'aReady'],[0.5,'aBall'],[0.95,'aUp']], ARM_KNOTS_T=[...ARM_KNOTS,[1.05,'aLoad']];
+
+/* ---------- Joueur = clone du gabarit + matériaux + mixer ---------- */
+const TPL={};
+const phys=(c,o={})=>new THREE.MeshPhysicalMaterial({color:c,roughness:0.72,sheen:1,sheenRoughness:0.5,sheenColor:new THREE.Color(c).lerp(new THREE.Color('#ffffff'),0.4),envMapIntensity:0.5,...o});
+const std=(c,r,o={})=>new THREE.MeshStandardMaterial({color:c,roughness:r,envMapIntensity:0.5,...o});
+function makeRig(kit,o,probe=false){
+  const key=[o.cap,o.blocks,o.wrist,o.tape].map(v=>v?1:0).join('');
+  const tpl=TPL[key]||(TPL[key]=buildTemplate(o));
+  const root=SkeletonUtils.clone(tpl.root); let mesh=null; const bones={};
+  root.traverse(n=>{if(n.isSkinnedMesh) mesh=n; if(n.isBone) bones[n.name]=n;});
+  const M={jersey:phys(kit.jersey),hoop:phys(kit.hoop),shorts:phys(kit.shorts,{roughness:0.6}),socks:phys(kit.socks,{roughness:0.85}),
+    skin:std(SKIN[o.si%SKIN.length],0.55),boot:std('#121318',0.35),stripe:std(kit.boot||'#e8edf4',0.4),stud:std('#9aa3ad',0.3,{metalness:0.5}),
+    hair:std(HAIR[o.si%HAIR.length],0.9),cap:std(kit.cap,0.5),capPad:std(kit.capPad,0.6),eye:std('#15171c',0.3),tape:std('#f1f1ee',0.5),block:std('#17181c',0.5),
+    num:new THREE.MeshBasicMaterial({map:numTex(o.num,kit.numCol),transparent:true,polygonOffset:true,polygonOffsetFactor:-2})};
+  mesh.material=tpl.slots.map(k=>M[k]);
+  const mixer=new THREE.AnimationMixer(root), actions={};
+  for(const [k,clip] of Object.entries(CLIPS)){const a=mixer.clipAction(clip); a.play(); a.setEffectiveWeight(0); actions[k]=a;}
+  const R={root,mesh,bones,mixer,actions,M,kit,headQ:null};
+  if(!probe){
+    if(o.label){R.lab=labelSprite(o.label,kit.label); scene.add(R.lab);}
+    R.ring=new THREE.Mesh(G.ring,new THREE.MeshBasicMaterial({color:'#ffffff',transparent:true,opacity:0.95,depthWrite:false}));
+    R.ring.rotation.x=-Math.PI/2; R.ring.visible=false; scene.add(R.ring);
+    scene.add(root);
+  }
+  return R;
+}
+function setVis(R,v){R.root.visible=v; if(R.lab) R.lab.visible=v&&opt.names; if(!v) R.ring.visible=false;}
+
+/* ---------- Pose d'un joueur : mixer -> couches procédurales -> IK des pieds ---------- */
+const _q1=new THREE.Quaternion(), _q2=new THREE.Quaternion(), _m4=new THREE.Matrix4(), _vx=new THREE.Vector3(), _vy=new THREE.Vector3(), _vz=new THREE.Vector3(), _wv=new THREE.Vector3();
+const Q_SIGL=QE(0,0,2.6), Q_SIGR=QE(0,0,-2.6), Q_ID=new THREE.Quaternion();
+v3.cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]];
+const WP=b=>{b.getWorldPosition(_wv); return [_wv.x,_wv.y,_wv.z];};
+const WAX=(b,ax)=>{b.getWorldQuaternion(_q1); _wv.set(ax[0],ax[1],ax[2]).applyQuaternion(_q1); return [_wv.x,_wv.y,_wv.z];};
+// oriente un os en repère monde : son axe +Y vers yv (vers le parent), +Z selon zv
+function aimBone(bone,yv,zv){
+  _vy.set(yv[0],yv[1],yv[2]).normalize(); _vz.set(zv[0],zv[1],zv[2]); _vz.addScaledVector(_vy,-_vz.dot(_vy));
+  if(_vz.lengthSq()<1e-8){_vz.set(0,0,1).addScaledVector(_vy,-_vy.z);} _vz.normalize(); _vx.crossVectors(_vy,_vz);
+  _m4.makeBasis(_vx,_vy,_vz); _q2.setFromRotationMatrix(_m4); bone.parent.getWorldQuaternion(_q1);
+  bone.quaternion.copy(_q1.invert().multiply(_q2)); bone.updateMatrixWorld(true);
+}
+// IK deux os maison : place b (genou/coude) pour que c atteigne la cible
+function solve2(a,target,l1,l2,poleDir){
+  const to=v3.sub(target,a), d=Math.max(0.05,Math.min(v3.len(to),l1+l2-0.002)), n=v3.norm(to);
+  const x=(l1*l1-l2*l2+d*d)/(2*d), h=Math.sqrt(Math.max(0,l1*l1-x*x));
+  let p=v3.sub(poleDir,v3.mul(n,v3.dot(poleDir,n))); if(v3.len(p)<1e-6) p=[0,0,1]; p=v3.norm(p);
+  return {b:v3.add(v3.add(a,v3.mul(n,x)),v3.mul(p,h)), c:v3.add(a,v3.mul(n,d))};
+}
+function poseRig(R,st,o){
+  const A=R.actions, B=R.bones;
+  // 1. poids des gestes (progressifs, dérivés de la timeline : rejouable et rembobinable)
+  const lf=clamp((st.lift-0.08)/0.25), run=clamp(st.run||0)*(1-lf), stc=clamp(st.stance||0)*(1-lf);
+  let rem=1-lf; const wRun=Math.min(rem,run); rem-=wRun; const wM=Math.min(rem,stc); rem-=wM;
+  const wR=Math.min(rem,clamp(st.crouch||0)*(1-run)); rem-=wR;
+  A.idle.setEffectiveWeight(Math.max(0,rem)); A.idle.time=(o.tG||0)%2.4;
+  A.ready.setEffectiveWeight(wR); A.jump.setEffectiveWeight(lf); A.maul.setEffectiveWeight(wM);
+  // course : la phase suit la distance parcourue ; marche arrière = cycle inversé ; bassin tourné vers le déplacement
+  const cy=Math.cos(st.yaw), sy=Math.sin(st.yaw), mvx=st.mvx||0, mvz=st.mvz??1;
+  const lx=mvx*cy-mvz*sy, lz=mvx*sy+mvz*cy; let ang=Math.atan2(lx,lz), back=false;
+  if(Math.abs(ang)>2.0){back=true; ang=wrapPi(ang-Math.PI);}
+  let ph=((st.gait||0)/(2*Math.PI))%1; if(ph<0) ph+=1;
+  A.run.setEffectiveWeight(wRun); A.run.time=back?1-ph:ph;
+  // bras : position du ballon / prêt à lifter / bras en l'air / ballon derrière la tête (talonneur)
+  const K=o.isT?ARM_KNOTS_T:ARM_KNOTS, a=clamp(st.arms,0,K[K.length-1][0]);
+  let i=0; while(i<K.length-2&&a>K[i+1][0]) i++;
+  const tk=clamp((a-K[i][0])/(K[i+1][0]-K[i][0])), share={aReady:0,aBall:0,aUp:0,aLoad:0};
+  let f=0; if(K[i][1]){share[K[i][1]]+=1-tk; f+=1-tk;} if(K[i+1][1]){share[K[i+1][1]]+=tk; f+=tk;}
+  if(a<0.3) f*=1-0.8*run;
+  const F=Math.min(0.97,f), Wa=f>0?F/(1-F)/f:0;
+  for(const k in share) A[k].setEffectiveWeight(share[k]*Wa);
+  // Le mixer ne réécrit un os que si la valeur du clip a changé depuis l'image précédente.
+  // On remet donc d'abord chaque os dans la pose sortie du mixer à l'image d'avant : sinon les couches
+  // procédurales (bassin, buste, pieds…) s'additionneraient d'une image à l'autre et feraient tourner les os.
+  if(!R.blist) R.blist=Object.values(R.bones);
+  if(R.snapQ) R.blist.forEach((b,i)=>{b.quaternion.copy(R.snapQ[i]); b.position.copy(R.snapP[i]);});
+  R.mixer.update(0);
+  if(!R.snapQ){R.snapQ=R.blist.map(()=>new THREE.Quaternion()); R.snapP=R.blist.map(()=>new THREE.Vector3());}
+  R.blist.forEach((b,i)=>{R.snapQ[i].copy(b.quaternion); R.snapP[i].copy(b.position);});
+  // 2. déplacement du joueur
+  R.root.position.set(st.x,st.lift*LIFTH,st.z); R.root.rotation.set(0,st.yaw,0);
+  // 3. couches procédurales : rotation du bassin, contre-rotation des épaules, penché, rotation du tronc, tête rentrée, signaux
+  const pel=clamp(ang,-1.1,1.1)*run, tw=st.twist||0, ln=st.lean||0;
+  if(pel){_q1.setFromAxisAngle(_UPV,pel); B.Hips.quaternion.premultiply(_q1);}
+  B.Spine.rotateY(-pel*0.45+tw*0.3); B.Spine1.rotateY(-pel*0.3+tw*0.35); B.Spine2.rotateY(-pel*0.25+tw*0.35);
+  if(ln){B.Spine.rotateX(ln*0.55); B.Spine1.rotateX(ln*0.45);}
+  if(st.tuck) B.Neck.rotateX(st.tuck*0.45);
+  if(st.sigI>0.01){B.LeftArm.quaternion.slerp(Q_SIGL,clamp(st.sigI)); B.LeftForeArm.quaternion.slerp(Q_ID,clamp(st.sigI));}
+  if(st.sigO>0.01){B.RightArm.quaternion.slerp(Q_SIGR,clamp(st.sigO)); B.RightForeArm.quaternion.slerp(Q_ID,clamp(st.sigO));}
+  if(st.lift>0.02&&lf<0.2){B.LeftFoot.rotateX(0.6); B.RightFoot.rotateX(0.6);}   // lifteurs sur la pointe des pieds
+  R.root.updateMatrixWorld(true);
+  // 4. IK des pieds : un pied proche du sol est ancré au sol, semelle à plat
+  if(st.lift<0.02){
+    const fwd=WAX(B.Hips,[0,0,1]);
+    for(const [S] of SIDES){
+      const ft=B[S+'Foot'], an=WP(ft); if(an[1]>0.14) continue;
+      const p=clamp((0.14-an[1])/0.05), hip=WP(B[S+'UpLeg']), kn=WP(B[S+'Leg']);
+      const tgt=[an[0],an[1]+(0.09-an[1])*p,an[2]];
+      const pole=v3.add(v3.sub(kn,v3.lerp(hip,an,0.5)),v3.mul(fwd,0.02));
+      const sol=solve2(hip,tgt,THIGH,SHIN,pole);
+      aimBone(B[S+'UpLeg'],v3.sub(hip,sol.b),fwd); aimBone(B[S+'Leg'],v3.sub(sol.b,sol.c),fwd);
+      ft.getWorldQuaternion(_q2); _q1.setFromAxisAngle(_UPV,st.yaw); _q2.slerp(_q1,p);
+      ft.parent.getWorldQuaternion(_q1); ft.quaternion.copy(_q1.invert().multiply(_q2)); ft.updateMatrixWorld(true);
+    }
+  }
+  // 5. inertie de la tête : elle suit le corps avec un léger retard
+  if(o.inertia!==undefined){
+    B.Head.getWorldQuaternion(_q2);
+    if(!R.headQ||!o.inertia) R.headQ=_q2.clone(); else R.headQ.slerp(_q2,1-Math.exp(-(o.dt||0)*9));
+    B.Head.parent.getWorldQuaternion(_q1); B.Head.quaternion.copy(_q1.invert().multiply(R.headQ)); B.Head.updateMatrixWorld(true);
+  }
+}
+// Articulations en repère monde (pour l'IK des mains, le ballon, les étiquettes)
+function extractS(R,st){
+  const B=R.bones, S={hips:[],knees:[],ankles:[],sh:[],el:[],wr:[],hand:[],hdir:[],palm:[]};
+  S.pel=WP(B.Hips); S.up=WAX(B.Spine2,[0,1,0]); S.fwd=WAX(B.Spine2,[0,0,1]); S.left=WAX(B.Spine2,[1,0,0]);
+  S.hipLeft=WAX(B.Hips,[1,0,0]); S.hipFwd=WAX(B.Hips,[0,0,1]); S.flat=[Math.sin(st.yaw),0,Math.cos(st.yaw)];
+  S.headUp=WAX(B.Head,[0,1,0]); S.headFwd=WAX(B.Head,[0,0,1]); S.head=v3.add(WP(B.Head),v3.mul(S.headUp,0.11)); S.neck=WP(B.Neck);
+  for(const [Sd,s] of SIDES){
+    S.hips.push(WP(B[Sd+'UpLeg'])); S.knees.push(WP(B[Sd+'Leg'])); S.ankles.push(WP(B[Sd+'Foot']));
+    S.sh.push(WP(B[Sd+'Arm'])); S.el.push(WP(B[Sd+'ForeArm']));
+    const wr=WP(B[Sd+'Hand']), hd=v3.mul(WAX(B[Sd+'Hand'],[0,1,0]),-1), px=WAX(B[Sd+'Hand'],[1,0,0]);
+    S.wr.push(wr); S.hdir.push(hd); S.hand.push(v3.add(wr,v3.mul(hd,0.06))); S.palm.push(s>0?v3.mul(px,-1):px);
+  }
+  return S;
+}
+// Réécrit les os des bras à partir des articulations calculées par l'IK (mains collées au sauteur, liaisons de maul)
+function writeArms(R,S){
+  const B=R.bones;
+  SIDES.forEach(([Sd,s],k)=>{
+    const sh=S.sh[k], el=S.el[k], wr=S.wr[k], ya=v3.sub(sh,el);
+    let za=v3.sub(wr,el); za=v3.sub(za,v3.mul(v3.norm(ya),v3.dot(za,v3.norm(ya)))); if(v3.len(za)<1e-3) za=WAX(B[Sd+'Arm'],[0,0,1]);
+    aimBone(B[Sd+'Arm'],ya,za); aimBone(B[Sd+'ForeArm'],v3.sub(el,wr),za);
+    const yh=v3.mul(S.hdir[k],-1), xh=s>0?v3.mul(S.palm[k],-1):S.palm[k];
+    aimBone(B[Sd+'Hand'],yh,v3.cross(xh,yh));
+    B[Sd+'Fingers'].quaternion.setFromEuler(_eu.set(0,0,-s*1.0)); B[Sd+'Fingers'].updateMatrixWorld(true);
+  });
+}
+let PROBE=null;
+function handsMid(st,isT=false){
+  if(!PROBE) PROBE=makeRig(US,{si:0,num:0},true);
+  poseRig(PROBE,st,{isT,tG:0}); const S=extractS(PROBE,st);
+  return v3.add(v3.lerp(S.hand[0],S.hand[1],0.5),v3.mul(S.flat,0.05));
+}
+
+const US={jersey:'#1f5fd6',hoop:'#f2f5fa',shorts:'#13254d',socks:'#1f5fd6',cap:'#13254d',capPad:'#2a4e9a',numCol:'#ffffff',boot:'#f2f5fa',label:'rgba(20,52,120,0.92)'};
+const THEM={jersey:'#c8372e',hoop:'#1b1b20',shorts:'#1b1b20',socks:'#c8372e',cap:'#1b1b20',capPad:'#5a2622',numCol:'#ffffff',boot:'#f6c445'};
+const FLUO='#c8ff1e';
+const NUMS={T:2,L1:1,S1:4,S2:5,S3:6,L2:3,L3:8,DM:9}, CAPS={T:1,L1:1,S2:1,L3:1};
+// sauteurs : manchons de lift ; avants : strap aux poignets ; L2 : bande de strap sur la tête
+const ours={}; ['L1','S1','S2','S3','L2','L3','T','DM'].forEach((n,i)=>ours[n]=makeRig(US,{label:n==='T'?'Talonneur':n==='DM'?'Demi':n,num:NUMS[n],cap:!!CAPS[n],si:i,
+  blocks:/^S/.test(n), wrist:n!=='DM', tape:n==='L2'}));
+const opps=[0,1,2,3,4].map(i=>makeRig(THEM,{num:[1,4,5,3,7][i],cap:i===0||i===3,si:i+2,blocks:i===1||i===3,wrist:true,tape:i===2}));
+const oppExtra=[makeRig(THEM,{num:2,cap:true,si:1,wrist:true}),makeRig(THEM,{num:9,cap:false,si:3})];
+const ROLE_COL={J:'#f6c445',L:'#dfe8ff'};
+
+const ball=new THREE.Mesh(new THREE.SphereGeometry(1,24,16),new THREE.MeshStandardMaterial({color:'#f3eee2',roughness:0.55}));
+ball.scale.set(0.095,0.095,0.15); ball.castShadow=true; scene.add(ball);
+
+const pathGroup=new THREE.Group(); scene.add(pathGroup);
+const pathMat={J:new THREE.MeshBasicMaterial({color:'#f6c445'}),N:new THREE.MeshBasicMaterial({color:'#bcd2ff'}),B:new THREE.MeshBasicMaterial({color:'#f6c445',transparent:true,opacity:0.55})};
+function clearPaths(){for(const c of [...pathGroup.children]){c.geometry.dispose();pathGroup.remove(c);}}
+function buildPaths(ph){
+  clearPaths(); if(!opt.paths) return;
+  const names=[...seq.line,'DM'];
+  for(const n of names){
+    const a=ph.start[n], b=ph.end[n]; if(Math.hypot(b.x-a.x,b.z-a.z)<0.35) continue;
+    const pts=[]; for(let k=0;k<=24;k++){const s=evalPlayer(ph,n,k/24); pts.push(new THREE.Vector3(s.x,0.03,s.z));}
+    const mat=ph.roles[n]==='J'?pathMat.J:pathMat.N;
+    pathGroup.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),40,0.03,6,false),mat));
+    const tip=new THREE.Mesh(new THREE.ConeGeometry(0.11,0.3,10),mat);
+    const p1=pts[pts.length-1], p0=pts[pts.length-3]; tip.position.copy(p1);
+    tip.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),p1.clone().sub(p0).normalize()); pathGroup.add(tip);
+  }
+  if(ph.ball.mode==='throw'){
+    const pts=[]; for(let k=0;k<=30;k++){const u=0.1+0.82*k/30; const q=ballFor(ph,u); pts.push(new THREE.Vector3(q[0],q[1],q[2]));}
+    pathGroup.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),60,0.018,5,false),pathMat.B));
+  }
+}
+
+/* ---------- Caméras ---------- */
+const CAMS={
+  '3/4':{p:[10,7.5,-3.5],t:[0,1,8.5]},
+  'Talonneur':{p:[0.4,2.4,-6.5],t:[0.3,1.6,9]},
+  'Côté':{p:[14,6,9.5],t:[0,1.2,9.5]},
+  'Dessus':{p:[0.6,25,9.2],t:[0.6,0,9.6]},
+  'Adverse':{p:[-12,5.5,9.5],t:[0,1.2,9.5]},
+};
+let camTween=null, camName='3/4';
+function setCam(name,instant){
+  camName=name; const c=CAMS[name];
+  document.querySelectorAll('#cams button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.c===name));
+  const to={p:new THREE.Vector3(...c.p),t:new THREE.Vector3(...c.t)};
+  if(instant||matchMedia('(prefers-reduced-motion: reduce)').matches){camera.position.copy(to.p);controls.target.copy(to.t);camTween=null;return;}
+  camTween={fp:camera.position.clone(),ft:controls.target.clone(),...to,t0:performance.now(),d:800};
+}
+controls.addEventListener('start',()=>{camTween=null;});
+
+/* =====================================================================
+   3. LECTURE ET INTERFACE
+   ===================================================================== */
+const $=id=>document.getElementById(id);
+const opt={def:'static',names:true,paths:true,step:false,ao:true,smaa:true,shadows:true,perf:false,auto:true};
+try{Object.assign(opt,JSON.parse(localStorage.getItem('touches-opt')||'{}'));}catch(e){}
+Object.assign(opt,{ao:true,smaa:true,shadows:true,perf:false,auto:true});   // rendu : réglages fixes, sans interface
+if(MOBILE) opt.ao=false;   // téléphone : pas d'occlusion ambiante par défaut (trop coûteuse), le reste est conservé
+const saveOpt=()=>{try{localStorage.setItem('touches-opt',JSON.stringify(opt));}catch(e){}};
+
+let lastRun=null;
+const goonOn=id=>!!opt.goon&&(id==='c5'||id==='ty');
+const metaFor=(id,code,name,sign)=>({code,name:name+(goonOn(id)?' + GOON':''),sign,goon:goonOn(id)});
+let seq=null, t=0, playing=false, stopAt=null, speed=1, lastPhase=-1, curGroup='c4', curKey=null;
+const popEls=[];
+
+function loadSeq(s,key){
+  seq=s.finalize(); curKey=key; t=0; lastPhase=-1;
+  for(const n in ours){const used=n==='T'||n==='DM'||seq.line.includes(n); setVis(ours[n],used);}
+  zoneDecals.clear();
+  if(seq.meta.code==='Tyson') ZN.forEach((z,i)=>zoneDecals.add(decal(z,1.4,1.4,LINE+4.6,ZP[i],0.5,0.9,'#f6c445')));
+  $('hCode').textContent=seq.meta.code; $('hName').textContent=seq.meta.name; $('hSign').textContent=seq.meta.sign;
+  const bar=$('bar'); bar.innerHTML='';
+  seq.phases.forEach((p,i)=>{const d=document.createElement('div'); d.className='seg-t k-'+p.kind; d.style.flexGrow=p.dur; d.title=`${i+1}. ${p.title}`; d.innerHTML='<div class="f"></div>'; bar.appendChild(d);});
+  document.querySelectorAll('.call,.ex button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.key===key));
+  play();
+}
+function phaseEnd(i){const p=seq.phases[i]; return p.t0+p.dur;}
+function play(){
+  if(!seq) return;
+  if(t>=seq.total-1e-3) t=0;
+  if(opt.step){const r=phaseAt(seq,t); let i=r.i; if(r.u>0.999&&i<seq.phases.length-1) i++; stopAt=phaseEnd(i)-1e-4;} else stopAt=null;
+  playing=true; updPlay();
+}
+function pause(){playing=false; stopAt=null; updPlay();}
+function updPlay(){
+  $('playIco').innerHTML=playing?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':'<path d="M7 4v16l13-8z"/>';
+  $('bPlay').setAttribute('aria-label',playing?'Pause':'Lecture');
+}
+function stepNext(){
+  if(!seq) return; const r=phaseAt(seq,t); let i=r.i;
+  if(r.u>0.999){ if(i>=seq.phases.length-1) return; i++; t=seq.phases[i].t0; }
+  stopAt=phaseEnd(i)-1e-4; playing=true; updPlay();
+}
+function stepPrev(){
+  if(!seq) return; const r=phaseAt(seq,t); let i=r.i;
+  if(r.u<0.15&&i>0) i--;
+  t=seq.phases[i].t0; pause();
+}
+
+let lastPoseT=-1;
+function applyFrame(tt,dt=0){
+  const r=evalSeq(seq,tt);
+  const show=opt.def!=='none';
+  const os=show?oppStates(seq,tt,opt.def):[];
+  if(show&&tt>0.06){ // foulée des adversaires, d'après leur déplacement récent
+    const os0=oppStates(seq,tt-0.06,opt.def);
+    os.forEach((o,i)=>{const dx=o.x-os0[i].x, dz=o.z-os0[i].z, d=Math.hypot(dx,dz);
+      if(d>0.005&&o.lift<0.05){o.run=clamp(d/0.06/3.4); o.mvx=dx/d; o.mvz=dz/d; o.gait=(o.x*o.mvx+o.z*o.mvz)/STRIDE*2*Math.PI;}});
+  }
+  // inertie de la tête seulement en lecture continue (un saut dans la timeline repart à zéro)
+  const inertia=playing&&Math.abs(tt-lastPoseT)<0.2; lastPoseT=tt;
+  const all={}, rig={}, sk={};
+  for(const n in r.st){ const R=n==='OT'?oppExtra[0]:n==='O9'?oppExtra[1]:ours[n];
+    if((n==='OT'||n==='O9')&&!show){setVis(R,false); continue;} all[n]=r.st[n]; rig[n]=R; }
+  os.forEach((s,i)=>{all['o'+i]=s; rig['o'+i]=opps[i];});
+  // 1) chaque joueur : mixer.update puis couches procédurales et IK des pieds
+  for(const n in all){ poseRig(rig[n],all[n],{isT:n==='T',tG:tt,dt,inertia}); sk[n]=extractS(rig[n],all[n]); }
+  // 2) IK des mains : lifteurs collés au sauteur, liaisons du maul, talonneur qui arrache (après les cibles)
+  const gr=Object.keys(all).filter(n=>{const s=all[n]; return s.grip>0.01&&s.tgt&&sk[s.tgt];}).sort((a,b)=>(all[a].side==='hk')-(all[b].side==='hk'));
+  for(const n of gr){ applyGrip(sk[n],all[n],sk[all[n].tgt],sk); writeArms(rig[n],sk[n]); }
+  for(const n in all){
+    const R=rig[n], S=sk[n];
+    if(n[0]==='o'||n==='OT'||n==='O9'){ setVis(R,true); continue; }
+    const role=r.ph.roles[n];
+    R.ring.visible=!!role; if(role){R.ring.material.color.set(ROLE_COL[role]); R.ring.position.set(S.pel[0],0.02,S.pel[2]);}
+    if(R.lab){R.lab.visible=opt.names; R.lab.position.set(S.head[0],S.head[1]+0.42,S.head[2]);}
+    // l'arracheur du maul GOON en maillot fluo
+    const fl=seq.ripper===n&&r.i>=seq.ripIdx;
+    if(R.fluo!==fl){R.fluo=fl; R.M.jersey.color.set(fl?FLUO:R.kit.jersey); R.M.jersey.sheenColor.set(fl?FLUO:R.kit.jersey).lerp(new THREE.Color('#ffffff'),0.4);
+      R.M.jersey.emissive.set(fl?'#3a5200':'#000000'); R.M.socks.color.set(fl?FLUO:R.kit.socks);}
+  }
+  opps.forEach((R,i)=>{ if(!(show&&i<os.length)) setVis(R,false); });
+  r.sk=sk;
+  let q;
+  if(r.ph.ball.mode==='held'){const S=sk[r.ph.ball.by]; q=S.ball||v3.add(v3.lerp(S.hand[0],S.hand[1],0.5),v3.mul(S.flat,0.05));}
+  else q=ballFor(r.ph,r.u);
+  ball.position.set(q[0],q[1],q[2]);
+  const fl=r.ph.ball.mode!=='held'&&r.u>0.05&&r.u<0.92;
+  if(fl){const q2=ballFor(r.ph,Math.min(1,r.u+0.01)); ball.lookAt(q2[0],q2[1],q2[2]); ball.rotateZ(r.u*40);} else {ball.rotation.set(0,Math.PI/2,0);}
+  if(r.i!==lastPhase){
+    lastPhase=r.i;
+    $('hStep').innerHTML=`<span class="n">${r.i+1}/${seq.phases.length}</span>${r.ph.title}`;
+    $('hDesc').textContent=r.ph.desc;
+    buildPaths(r.ph);
+    [...$('bar').children].forEach((c,k)=>c.classList.toggle('cur',k===r.i));
+  }
+  [...$('bar').children].forEach((c,k)=>{c.firstChild.style.width=(k<r.i?100:k===r.i?r.u*100:0)+'%';});
+  $('stepInfo').textContent=`Étape ${r.i+1} sur ${seq.phases.length} · ${tt.toFixed(1).replace('.',',')} s / ${seq.total.toFixed(1).replace('.',',')} s`;
+  // bulles
+  const rect=stage.getBoundingClientRect();
+  r.ph.pops.forEach((pp,k)=>{
+    let el=popEls[k]; if(!el){el=document.createElement('div'); el.className='pop'; $('pops').appendChild(el); popEls[k]=el;}
+    const h=r.sk[pp.n].head; const v=new THREE.Vector3(h[0],h[1]+0.75,h[2]).project(camera);
+    el.textContent=pp.text; el.style.display=v.z<1?'block':'none';
+    el.style.left=((v.x+1)/2*rect.width)+'px'; el.style.top=((1-v.y)/2*rect.height)+'px';
+    el.style.opacity=SHAPES.hold(r.u).toFixed(2);
+  });
+  for(let k=r.ph.pops.length;k<popEls.length;k++) popEls[k].style.display='none';
+}
+
+/* ---------- Post-traitement : SMAA + occlusion ambiante (GTAO, repli SSAO), sortie ACES ---------- */
+const composer=new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene,camera));
+let aoPass=null, aoName='';
+const smaaPass=new SMAAPass(1,1);
+const outPass=new OutputPass();
+async function initPost(){
+  const w=stage.clientWidth||800, h=stage.clientHeight||600;
+  try{ const {GTAOPass}=await import('three/addons/postprocessing/GTAOPass.js');
+    aoPass=new GTAOPass(scene,camera,w,h); aoPass.updateGtaoMaterial({radius:0.45,distanceExponent:1.5,thickness:1,scale:1.2,samples:12}); aoPass.blendIntensity=0.9; aoName='GTAO';
+  }catch(e){ try{ const {SSAOPass}=await import('three/addons/postprocessing/SSAOPass.js');
+    aoPass=new SSAOPass(scene,camera,w,h); aoPass.kernelRadius=0.5; aoPass.minDistance=0.002; aoPass.maxDistance=0.06; aoName='SSAO'; }catch(e2){ aoPass=null; } }
+  if(aoPass) composer.addPass(aoPass);
+  composer.addPass(smaaPass); composer.addPass(outPass);
+  applyRenderOpts(); resize();
+}
+function applyRenderOpts(){
+  if(aoPass) aoPass.enabled=opt.ao; smaaPass.enabled=opt.smaa; sun.castShadow=opt.shadows;
+  $('perf').hidden=!opt.perf;
+}
+function renderScene(){
+  renderer.info.reset();
+  if((aoPass&&opt.ao)||opt.smaa) composer.render(); else renderer.render(scene,camera);
+}
+
+/* ---------- Performances : stats.js, renderer.info, réduction automatique ---------- */
+const stats=new Stats(); stats.dom.style.cssText='position:relative;display:flex;gap:2px;cursor:pointer'; $('perfStats').appendChild(stats.dom);
+let fpsAcc=0, fpsN=0, fpsT=0, lowWin=0, infoT=0;
+function perfTick(dt){
+  fpsAcc+=dt; fpsN++; fpsT+=dt; infoT+=dt;
+  if(infoT>0.5&&opt.perf){ infoT=0; const i=renderer.info;
+    $('perfInfo').textContent=`appels ${i.render.calls}  ·  triangles ${i.render.triangles.toLocaleString('fr-FR')}\ngéométries ${i.memory.geometries}  ·  textures ${i.memory.textures}  ·  shaders ${i.programs?i.programs.length:'–'}\nAO ${aoPass?(opt.ao?aoName+' actif':aoName+' coupé'):'indisponible'}  ·  SMAA ${opt.smaa?'actif':'coupé'}  ·  ombres ${opt.shadows?'actives':'coupées'}`; }
+  if(fpsT>=2){ const fps=fpsN/fpsAcc, dtAvg=fpsAcc/fpsN; fpsAcc=fpsN=fpsT=0;
+    // mesure ignorée si l'onglet est en arrière-plan (images bridées par le navigateur)
+    if(opt.auto&&!document.hidden&&dtAvg<0.2&&fps<30){ lowWin++;
+      if(lowWin>=2){ lowWin=0; let cut='';
+        if(aoPass&&opt.ao){opt.ao=false; cut='l’occlusion ambiante';} else if(opt.smaa){opt.smaa=false; cut='l’anti-aliasing SMAA';} else if(opt.shadows){opt.shadows=false; cut='les ombres';}
+        if(cut) applyRenderOpts(); } }
+    else lowWin=0;
+  }
+}
+
+/* ---------- Boucle : THREE.Clock, simulation à pas fixe, rendu interpolé ---------- */
+const clock=new THREE.Clock(); const SIM_DT=1/120; let simAcc=0, prevT=0;
+function frame(){
+  requestAnimationFrame(frame);
+  const dt=Math.min(0.1,clock.getDelta()); stats.begin();
+  if(seq&&playing){
+    simAcc+=dt*speed;
+    while(simAcc>=SIM_DT){ prevT=t; t+=SIM_DT; simAcc-=SIM_DT; const lim=stopAt??seq.total;
+      if(t>=lim){ t=lim; prevT=t; simAcc=0; playing=false; stopAt=null; updPlay(); break; } }
+  } else { prevT=t; simAcc=0; }
+  const tr=prevT+(t-prevT)*(playing?simAcc/SIM_DT:0);   // état interpolé entre les deux derniers pas
+  if(camTween){const k=easeIO(clamp((performance.now()-camTween.t0)/camTween.d)); camera.position.lerpVectors(camTween.fp,camTween.p,k); controls.target.lerpVectors(camTween.ft,camTween.t,k); if(k>=1) camTween=null;}
+  controls.update();
+  if(seq) applyFrame(tr,dt);
+  renderScene(); stats.end(); perfTick(dt);
+}
+function resize(){const w=stage.clientWidth,h=stage.clientHeight; if(!w||!h) return; renderer.setSize(w,h,false); camera.aspect=w/h; camera.fov=w/h<0.8?60:42; camera.updateProjectionMatrix();   // écran en hauteur (iPhone) : champ plus large pour garder tout l'alignement
+  composer.setSize(w,h); const pr=renderer.getPixelRatio(); smaaPass.setSize(w*pr,h*pr); if(aoPass&&aoPass.setSize) aoPass.setSize(w,h);}
+new ResizeObserver(resize).observe(stage);
+
+/* ---------- Panneau ---------- */
+function renderTabs(){
+  $('tabs').innerHTML=GROUPS.map(g=>`<button class="tab" role="tab" type="button" data-g="${g.id}" aria-selected="${g.id===curGroup}">${g.tab}<small>${g.sub}</small></button>`).join('');
+  $('tabs').querySelectorAll('.tab').forEach(b=>b.onclick=()=>selectGroup(b.dataset.g));
+}
+function selectGroup(id){
+  curGroup=id; renderTabs(); const g=GROUPS.find(x=>x.id===id);
+  $('groupInfo').innerHTML=g.info+'<div class="formation">'+g.formation.map(f=>f==='·'?'<span class="gap">…</span>':`<span>${f}</span>`).join('')+'</div>';
+  $('tysonBox').hidden=!g.tyson; $('callList').hidden=!!g.tyson; $('goonWrap').hidden=!(id==='c5'||id==='ty');
+  if(g.tyson){ document.querySelector('.rules div span').textContent='Zone T = S1 (devant), zone S = S2 (milieu), zone N = S3 (fond). Directe : S1 avance, S2 saute sur place, S3 recule sur L2.'; return; }
+  $('callList').innerHTML=g.calls.map((c,i)=>`<button class="call" type="button" data-key="${g.id}-${i}" aria-pressed="${curKey===g.id+'-'+i}"><span class="code">${c.code}</span><span class="nm">${c.name}</span><span class="sm">${c.sum}</span></button>`).join('');
+  $('callList').querySelectorAll('.call').forEach(b=>b.onclick=()=>{const [gid,i]=b.dataset.key.split('-'); const c=GROUPS.find(x=>x.id===gid).calls[+i];
+    lastRun=()=>loadSeq(c.build(metaFor(g.id,c.code,c.name,g.sign)),b.dataset.key); lastRun(); closeSheet();});
+}
+function runTyson(text,key){
+  try{const p=parseTyson(text); $('tysonErr').textContent=''; lastRun=()=>loadSeq(buildTyson(p,goonOn('ty')),key||'ty-input'); lastRun(); closeSheet();}
+  catch(e){$('tysonErr').textContent=e.message;}
+}
+$('tysonGo').onclick=()=>runTyson($('tysonInput').value);
+$('tysonInput').addEventListener('keydown',e=>{if(e.key==='Enter') runTyson($('tysonInput').value);});
+document.querySelectorAll('.key').forEach(b=>b.onclick=()=>{const i=$('tysonInput');
+  if(b.dataset.z){const rest=i.value.replace(/^\s*[A-Za-zÀ-ÿ]+/,'').trim(); i.value=b.dataset.z+(rest?' '+rest:''); i.focus(); return;}
+  if(b.dataset.k==='⌫') i.value=i.value.replace(/\s*[+−-]\s*$/,''); else i.value=i.value.replace(/\s+$/,'')+(/[+−-]$/.test(i.value.trim())&&i.value.trim().slice(-1)===b.dataset.k?'':' ')+b.dataset.k; i.focus();});
+$('tysonEx').innerHTML=TY_EX.map((x,i)=>`<button type="button" data-key="ty-${i}">${x}</button>`).join('');
+$('tysonEx').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('tysonInput').value=b.textContent; runTyson(b.textContent,b.dataset.key);});
+
+$('defSeg').querySelectorAll('button').forEach(b=>{b.setAttribute('aria-pressed',b.dataset.d===opt.def); b.onclick=()=>{opt.def=b.dataset.d; saveOpt(); $('defSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));};});
+$('optNames').checked=opt.names; $('optPaths').checked=opt.paths; $('optStep').checked=opt.step;
+$('optNames').onchange=e=>{opt.names=e.target.checked; saveOpt();};
+$('optPaths').onchange=e=>{opt.paths=e.target.checked; saveOpt(); if(seq) buildPaths(phaseAt(seq,t).ph);};
+$('optStep').onchange=e=>{opt.step=e.target.checked; saveOpt(); if(playing) play();};
+$('optGoon').checked=!!opt.goon; $('optGoon').onchange=e=>{opt.goon=e.target.checked; saveOpt(); if(lastRun&&(curGroup==='c5'||curGroup==='ty')) lastRun();};
+$('cams').innerHTML=Object.keys(CAMS).map(n=>`<button type="button" data-c="${n}">${n}</button>`).join('');
+$('cams').querySelectorAll('button').forEach(b=>b.onclick=()=>setCam(b.dataset.c));
+
+$('bPlay').onclick=()=>playing?pause():play();
+$('bRestart').onclick=()=>{t=0; play();};
+$('bNext').onclick=stepNext; $('bPrev').onclick=stepPrev;
+$('speedSel').onchange=e=>speed=+e.target.value;
+const bar=$('bar'); let scrub=false;
+const scrubTo=e=>{const r=bar.getBoundingClientRect(); t=clamp((e.clientX-r.left)/r.width)*seq.total; pause();};
+bar.addEventListener('pointerdown',e=>{if(!seq) return; scrub=true; bar.setPointerCapture(e.pointerId); scrubTo(e);});
+bar.addEventListener('pointermove',e=>{if(scrub) scrubTo(e);});
+bar.addEventListener('pointerup',()=>scrub=false);
+window.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||!$('menu').hidden) return;
+  if(e.code==='Space'){e.preventDefault(); playing?pause():play();} else if(e.key==='ArrowRight') stepNext(); else if(e.key==='ArrowLeft') stepPrev();});
+const panel=$('panel');
+function closeSheet(){panel.classList.remove('open');}
+$('menuBtn').onclick=()=>panel.classList.toggle('open');
+$('sheetClose').onclick=closeSheet;
+
+/* ---------- Menu d'accueil ---------- */
+let launched=false;
+function showMenu(v){
+  $('menu').hidden=!v; controls.autoRotate=v; controls.autoRotateSpeed=0.45;
+  $('menuBack').hidden=!launched; $('menuGoon').checked=!!opt.goon;
+  if(v){ pause(); closeSheet(); setCam('3/4'); $('menuGrid').querySelector('button')?.focus({preventScroll:true}); }
+}
+function enterSim(){ launched=true; showMenu(false); setCam('3/4'); }
+function buildMenu(){
+  const chips=g=>'<div class="formation">'+g.formation.map(f=>f==='·'?'<span class="gap">…</span>':`<span>${f}</span>`).join('')+'</div>';
+  $('menuGrid').innerHTML=GROUPS.map(g=>{
+    const head=`<div class="m-top"><h2>${g.tab}</h2><span class="chip">${g.sub}</span></div>${chips(g)}`;
+    if(g.tyson) return `<section class="m-card">${head}<p class="m-txt">Annonce la zone (T, S ou N) puis les signes + et −. Exemples :</p>
+      <div class="ex">${TY_EX.map(x=>`<button type="button" data-ty="${x}">${x}</button>`).join('')}</div>
+      <button class="btn" type="button" id="menuTyson">Composer un appel</button></section>`;
+    return `<section class="m-card">${head}<div class="m-calls">${g.calls.map((c,i)=>
+      `<button type="button" class="m-call" data-g="${g.id}" data-i="${i}"><span class="code">${c.code}</span><span class="nm">${c.name}</span></button>`).join('')}</div></section>`;
+  }).join('');
+  $('menuGrid').querySelectorAll('.m-call').forEach(b=>b.onclick=()=>{
+    const g=GROUPS.find(x=>x.id===b.dataset.g), i=+b.dataset.i, c=g.calls[i];
+    enterSim(); selectGroup(g.id);
+    lastRun=()=>loadSeq(c.build(metaFor(g.id,c.code,c.name,g.sign)),g.id+'-'+i); lastRun();});
+  $('menuGrid').querySelectorAll('[data-ty]').forEach(b=>b.onclick=()=>{
+    enterSim(); selectGroup('ty'); $('tysonInput').value=b.dataset.ty; runTyson(b.dataset.ty,'ty-'+TY_EX.indexOf(b.dataset.ty));});
+  $('menuTyson').onclick=()=>{ enterSim(); selectGroup('ty'); if(innerWidth<=760) panel.classList.add('open'); $('tysonInput').focus(); };
+}
+$('menuGoon').onchange=e=>{opt.goon=e.target.checked; saveOpt(); $('optGoon').checked=opt.goon;};
+$('menuBack').onclick=()=>{ showMenu(false); };
+$('toMenu').onclick=()=>showMenu(true); $('homeBtn').onclick=()=>showMenu(true);
+window.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!$('menu').hidden&&launched) showMenu(false); });
+
+window.touchesDebug={info(){const i=renderer.info; return {appels:i.render.calls,triangles:i.render.triangles,geometries:i.memory.geometries,textures:i.memory.textures,ao:aoName,aoOn:!!(aoPass&&opt.ao)};},
+  render(){renderScene(); return this.info();},
+  opp(x){return oppStates(seq,x,'follow').map(o=>({x:+o.x.toFixed(2),z:+o.z.toFixed(2),lift:+o.lift.toFixed(2)}));},
+  oppMeta(){return {mono:seq.oppMono,pod:seq.oppPod,monoEv:seq.monoEv,podEv:seq.podEv,homes:seq.oppHomes,threatT0:seq.threatT0};},
+  pos(n,x){const r=evalSeq(seq,x), s=r.st[n]; return {x:+s.x.toFixed(3),z:+s.z.toFixed(3),yaw:+s.yaw.toFixed(2),lift:+s.lift.toFixed(2),phase:r.ph.title};},
+  phases(){return seq.phases.map(p=>({t0:+p.t0.toFixed(2),dur:p.dur,title:p.title,roles:p.roles,ripper:seq.ripper}));},
+  bonesOf(n){const R=n[0]==='o'?opps[+n.slice(1)]:ours[n]; const o={}; for(const k in R.bones){const q=R.bones[k].quaternion; o[k]=[q.x,q.y,q.z,q.w].map(v=>+v.toFixed(5));} return o;},
+  go(x,cam,pos,tg){if(cam) setCam(cam,true); if(pos){camera.position.set(...pos); controls.target.set(...tg);} t=x; pause(); controls.update(); applyFrame(t,0); renderScene(); return {t,total:seq.total,phases:seq.phases.map(p=>p.title)};},
+  tyson(txt){runTyson(txt); pause(); return seq.phases.map(p=>p.title);},
+  call(g,i){const G0=GROUPS.find(x=>x.id===g), c=G0.calls[i]; loadSeq(c.build(metaFor(g,c.code,c.name,G0.sign)),g+'-'+i); pause(); return seq.total;}};
+/* ---------- Démarrage ---------- */
+(async()=>{
+  try{await Promise.race([document.fonts.load('700 48px "Barlow Condensed"'),new Promise(r=>setTimeout(r,1500))]);}catch(e){}
+  buildField(); scene.traverse(o=>{if(o.material&&o.material.isMeshStandardMaterial&&o.material.envMapIntensity===1) o.material.envMapIntensity=0.35;});
+  resize(); setCam('3/4',true); await initPost();
+  // On arrive sur le menu : derrière lui, un alignement à 5 au repos et la caméra qui tourne lentement.
+  selectGroup('c5');
+  const c=GROUPS[2].calls[0]; loadSeq(c.build({code:c.code,name:c.name,sign:GROUPS[2].sign}),'c5-0'); pause();
+  buildMenu(); showMenu(true);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
